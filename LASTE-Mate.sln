@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LASTE-Mate", "LASTE-Mate\LASTE-Mate.csproj", "{89AE3AC1-E44F-4F34-868D-4DC3BAB47117}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LASTE-Mate", "LASTE-Mate.csproj", "{89AE3AC1-E44F-4F34-868D-4DC3BAB47117}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

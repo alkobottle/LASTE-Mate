@@ -1,15 +1,13 @@
 # LASTE-Mate
 
-An Avalonia-based application that replaces the other wind correction calculator for the A-10C II aircraft in DCS World. This tool automatically extracts wind data from the DCS mission briefing page, calculates the CDU wind lines needed for accurate bombing runs, and can automatically enter the data into the CDU via DCS-BIOS.
-
-   ![LASTE-Mate Screenshot](docs/screenshots/Screenshot.png)
+A modern Avalonia-based application that replaces the Excel-based wind correction calculator for the A-10C II aircraft in DCS World. This tool automatically extracts wind data from DCS, calculates the CDU wind lines needed for accurate bombing runs, and can automatically enter the data into the CDU via DCS-BIOS.
 
 ## Features
 
 - **Automatic DCS Integration**: Reads wind data directly from DCS via Lua export script
 - **Dual Connection Modes**: 
-  - **File-based**: Reads from JSON export file
-  - **TCP Socket**: Reads from TCP Socket
+  - **File-based**: Reads from JSON export file (read-only, no DCS-BIOS required)
+  - **TCP Socket**: Real-time bidirectional communication with DCS
 - **Automatic CDU Data Entry**: Sends button sequences to DCS-BIOS to automatically enter wind data into the CDU
 - **Manual Input Mode**: Enter wind data manually if DCS export is unavailable
 - **Real-time Updates**: Automatically updates calculations when DCS wind data changes
@@ -18,7 +16,7 @@ An Avalonia-based application that replaces the other wind correction calculator
 - **Progress Tracking**: Visual feedback with progress indicator and debug log during CDU data entry
 - **Error Recovery**: Automatically detects and recovers from CDU input errors
 
-## Components
+## Software Architecture
 
 ```mermaid
 graph TB
@@ -30,9 +28,9 @@ graph TB
     LASTE["LASTE-Mate<br/>(C# Application)"]
 
     %% Data Flow
-    LuaScript -->|"Briefing Weather Data<br/>(TCP/File)"| LASTE
-    LASTE -->|"CDU Commands<br/>(UDP)"| DcsBios
-    DcsBios -->|"CDU Status<br/>(UDP)"| LASTE
+    LuaScript -->|Wind Data<br/>(TCP/File)| LASTE
+    LASTE -->|CDU Commands<br/>(UDP)| DcsBios
+    DcsBios -->|CDU Status<br/>(UDP)| LASTE
 ```
 
 ## Installation
