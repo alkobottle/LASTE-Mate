@@ -184,7 +184,7 @@ See [Scripts/README.md](Scripts/README.md) for detailed instructions on installi
 
 ## Multiplayer Support
 
-Attention, the export script works in multiplayer, but has only been tested on a private server that allows exports. Some multiplayer servers might see such automation like LASTE-Mate as cheating. Please check with the server owners first, before using LASTE-Mate.
+Attention, the export script works in multiplayer, but has only been tested on a private server that allows exports. An automation like LASTE-Mate may be disallowed by some servers; make sure to verify server rules!
 
 ## Troubleshooting
 

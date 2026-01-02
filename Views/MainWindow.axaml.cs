@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Specialized;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -13,10 +14,34 @@ namespace LASTE_Mate.Views;
 
 public partial class MainWindow : Window
 {
+    private ScrollViewer? _debugLogScrollViewer;
+
     public MainWindow()
     {
         InitializeComponent();
         Closing += MainWindow_Closing;
+        
+        // Subscribe to debug log changes for autoscroll
+        this.Loaded += MainWindow_Loaded;
+    }
+
+    private void MainWindow_Loaded(object? sender, EventArgs e)
+    {
+        _debugLogScrollViewer = this.FindControl<ScrollViewer>("DebugLogScrollViewer");
+        
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            viewModel.CduDebugLog.CollectionChanged += (s, args) =>
+            {
+                if (_debugLogScrollViewer != null && args.NewItems?.Count > 0)
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        _debugLogScrollViewer.ScrollToEnd();
+                    }, DispatcherPriority.Background);
+                }
+            };
+        }
     }
 
     private void NumericUpDown_GotFocus(object? sender, GotFocusEventArgs e)

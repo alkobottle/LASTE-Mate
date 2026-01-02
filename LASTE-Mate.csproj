@@ -20,6 +20,12 @@
     </ItemGroup>
 
     <ItemGroup>
+        <Compile Remove="LASTE-Mate.Tests\**" />
+        <EmbeddedResource Remove="LASTE-Mate.Tests\**" />
+        <None Remove="LASTE-Mate.Tests\**" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="Avalonia" Version="11.3.10" />
         <PackageReference Include="Avalonia.Desktop" Version="11.3.10" />
         <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.10" />

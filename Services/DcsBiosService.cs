@@ -24,9 +24,9 @@ public sealed class DcsBiosService : IDisposable
     private readonly Dictionary<string, string> _biosData = new();
     private readonly object _dataSync = new();
 
-    public int SendPort { get; private set; } = DefaultSendPort;
-    public int ReceivePort { get; private set; } = DefaultReceivePort;
-    public IPAddress Host { get; private set; } = DefaultHost;
+    private int SendPort { get; set; } = DefaultSendPort;
+    private int ReceivePort { get; set; } = DefaultReceivePort;
+    private IPAddress Host { get; set; } = DefaultHost;
 
     public event EventHandler<string>? DataReceived;
 
@@ -47,7 +47,10 @@ public sealed class DcsBiosService : IDisposable
     {
         lock (_sync)
         {
-            if (_receiveClient != null || _disposed) return;
+            if (_receiveClient != null || _disposed)
+            {
+                return;
+            }
 
             try
             {
@@ -71,29 +74,9 @@ public sealed class DcsBiosService : IDisposable
         {
             try
             {
-                var result = await _receiveClient.ReceiveAsync();
+                var result = await _receiveClient.ReceiveAsync(cancellationToken);
                 var message = Encoding.ASCII.GetString(result.Buffer);
-                
-                lock (_dataSync)
-                {
-                    // Parse DCS-BIOS data format: "CONTROL VALUE\n"
-                    var lines = message.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var line in lines)
-                    {
-                        var parts = line.Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length == 2)
-                        {
-                            var control = parts[0];
-                            var value = parts[1];
-                            _biosData[control] = value;
-                            
-                            if (control == "CDU_LINE9")
-                            {
-                                DataReceived?.Invoke(this, value);
-                            }
-                        }
-                    }
-                }
+                ProcessReceivedMessage(message);
             }
             catch (ObjectDisposedException)
             {
@@ -111,14 +94,39 @@ public sealed class DcsBiosService : IDisposable
         }
     }
 
-    /// <summary>
-    /// Gets the current value of a DCS-BIOS control.
-    /// </summary>
-    public string? GetControlValue(string control)
+    private void ProcessReceivedMessage(string message)
     {
         lock (_dataSync)
         {
-            return _biosData.TryGetValue(control, out var value) ? value : null;
+            var lines = message.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var line in lines)
+            {
+                var parts = line.Split([' '], 2, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length != 2)
+                {
+                    continue;
+                }
+
+                var control = parts[0];
+                var value = parts[1];
+                _biosData[control] = value;
+
+                if (control == "CDU_LINE9")
+                {
+                    DataReceived?.Invoke(this, value);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the current value of a DCS-BIOS control.
+    /// </summary>
+    private string? GetControlValue(string control)
+    {
+        lock (_dataSync)
+        {
+            return _biosData.GetValueOrDefault(control);
         }
     }
 
@@ -128,12 +136,15 @@ public sealed class DcsBiosService : IDisposable
     public bool HasCduError()
     {
         var line9 = GetControlValue("CDU_LINE9");
-        if (string.IsNullOrEmpty(line9)) return false;
-        
+        if (string.IsNullOrEmpty(line9))
+        {
+            return false;
+        }
+
         // Check for common error patterns (case-insensitive)
         var upper = line9.ToUpperInvariant();
-        return upper.Contains("INPUT ERROR") || 
-               upper.Contains("ERROR") || 
+        return upper.Contains("INPUT ERROR") ||
+               upper.Contains("ERROR") ||
                upper.Contains("INVALID");
     }
 
@@ -151,10 +162,7 @@ public sealed class DcsBiosService : IDisposable
 
             lock (_sync)
             {
-                if (_sendClient == null)
-                {
-                    _sendClient = new UdpClient();
-                }
+                _sendClient ??= new UdpClient();
             }
 
             var endpoint = new IPEndPoint(Host, SendPort);
@@ -177,10 +185,13 @@ public sealed class DcsBiosService : IDisposable
     {
         System.Diagnostics.Debug.WriteLine("DcsBiosService: Clearing CDU error with CLR");
         var pressed = await SendControlAsync("CDU_CLR", 1);
-        if (!pressed) return false;
-        
+        if (!pressed)
+        {
+            return false;
+        }
+
         await Task.Delay(50);
-        
+
         return await SendControlAsync("CDU_CLR", 0);
     }
 
@@ -190,7 +201,10 @@ public sealed class DcsBiosService : IDisposable
     public async Task<bool> PressAndReleaseAsync(string control, int holdMs = 50)
     {
         var pressed = await SendControlAsync(control, 1);
-        if (!pressed) return false;
+        if (!pressed)
+        {
+            return false;
+        }
 
         await Task.Delay(holdMs);
 
@@ -211,7 +225,10 @@ public sealed class DcsBiosService : IDisposable
 
         // Set to target position
         var set = await SendControlAsync("CDU_PG", targetPosition);
-        if (!set) return false;
+        if (!set)
+        {
+            return false;
+        }
 
         // Hold
         await Task.Delay(holdMs);
@@ -222,12 +239,19 @@ public sealed class DcsBiosService : IDisposable
 
     private void ThrowIfDisposed()
     {
-        if (_disposed) throw new ObjectDisposedException(nameof(DcsBiosService));
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(DcsBiosService));
+        }
     }
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
 
         lock (_sync)
@@ -235,13 +259,13 @@ public sealed class DcsBiosService : IDisposable
             try
             {
                 _receiveCancellationTokenSource?.Cancel();
-                
+
                 _receiveClient?.Close();
                 _receiveClient?.Dispose();
-                
+
                 _sendClient?.Close();
                 _sendClient?.Dispose();
-                
+
                 if (_receiveTask != null)
                 {
                     try

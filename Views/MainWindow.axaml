@@ -3,149 +3,216 @@
         xmlns:vm="using:LASTE_Mate.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="985" d:DesignHeight="850"
+        mc:Ignorable="d" d:DesignWidth="1335" d:DesignHeight="850"
         x:Class="LASTE_Mate.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="LASTE-Mate"
-        Width="985" Height="850"
+        Width="1335" Height="850"
         MinWidth="985" MinHeight="850">
 
     <Design.DataContext>
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="400,*" Margin="10">
-        <!-- Header -->
-        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" 
-                   Text="LASTE-Mate" 
-                   FontSize="20" FontWeight="Bold" 
-                   HorizontalAlignment="Center" Margin="0,0,0,10"/>
+    <!-- =========================================================
+         Shared styling for consistent look across sections
+         ========================================================= -->
+    <Window.Styles>
+        <!-- Default typography -->
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
 
-        <!-- Input Section -->
-        <Grid Grid.Row="1" Grid.Column="0" RowDefinitions="*,Auto" Margin="0,0,10,0">
+        <Style Selector="TextBlock.sectionTitle">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style Selector="TextBlock.subTitle">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Width" Value="90"/>
+        </Style>
+
+        <!-- Card container -->
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="#3A3A3A"/>
+            <Setter Property="BorderBrush" Value="#505050"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10"/>
+        </Style>
+
+        <!-- Inner separators inside a card -->
+        <Style Selector="Border.rowDivider">
+            <Setter Property="BorderBrush" Value="#505050"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="0,8,0,8"/>
+        </Style>
+
+        <!-- Primary action button sizing consistency -->
+        <Style Selector="Button.bigAction">
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="#DC3545"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <!-- Table look -->
+        <Style Selector="Border.tableFrame">
+            <Setter Property="Background" Value="#1E1E1E"/>
+            <Setter Property="BorderBrush" Value="#505050"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+
+        <Style Selector="Border.tableHeader">
+            <Setter Property="Background" Value="#2D2D2D"/>
+            <Setter Property="BorderBrush" Value="#404040"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="Padding" Value="10,10"/>
+            <Setter Property="CornerRadius" Value="6,6,0,0"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*" ColumnDefinitions="400,*,Auto" Margin="10">
+        <!-- =========================================================
+             LEFT: Inputs
+             ========================================================= -->
+        <Grid Grid.Row="0" Grid.Column="0" RowDefinitions="*,Auto" Margin="0,0,12,0">
             <ScrollViewer Grid.Row="0">
-                <StackPanel Spacing="15" Margin="0">
+                <StackPanel Spacing="12">
+
                     <!-- Map Selection -->
-                    <Border BorderBrush="{Binding IsMapMatched, Converter={StaticResource BoolToBorderBrushConverter}}" 
-                            BorderThickness="2" 
-                            CornerRadius="3" 
-                            Padding="5" 
-                            Margin="0,0,0,10">
+                    <Border Classes="card"
+                            BorderBrush="{Binding IsMapMatched, Converter={StaticResource BoolToBorderBrushConverter}}"
+                            BorderThickness="2">
                         <StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="5">
-                                <TextBlock Text="Map Selection" FontWeight="Bold" Margin="0,0,0,5"/>
-                                <TextBlock Text="⚠ Map not matched!" 
-                                           Foreground="Red" 
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Classes="sectionTitle" Text="Map Selection"/>
+                                <TextBlock Text="⚠ Map not matched!"
+                                           Foreground="#FF6B6B"
                                            FontWeight="SemiBold"
                                            FontSize="11"
                                            IsVisible="{Binding IsMapMatched, Converter={StaticResource BoolInvertConverter}}"/>
                             </StackPanel>
-                            <ComboBox ItemsSource="{Binding AvailableMaps}" 
-                                      SelectedItem="{Binding SelectedMap}"/>
+                            <ComboBox ItemsSource="{Binding AvailableMaps}"
+                                      SelectedItem="{Binding SelectedMap}"
+                                      HorizontalAlignment="Stretch"/>
                         </StackPanel>
                     </Border>
 
                     <!-- Ground Temperature -->
-                    <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="5" Margin="0,0,0,10">
+                    <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Text="Ground Temperature" FontWeight="Bold" Margin="0,0,0,5"/>
-                            <StackPanel Orientation="Horizontal">
-                            <NumericUpDown Value="{Binding GroundTempC}" 
-                                           Minimum="-50" Maximum="50" 
-                                           Increment="1" FormatString="F0"
-                                           Width="120" Margin="0,0,10,0"
-                                           GotFocus="NumericUpDown_GotFocus"/>
-                                <TextBlock Text="°C" VerticalAlignment="Center"/>
-                            </StackPanel>
+                            <TextBlock Classes="sectionTitle" Text="Ground Temperature"/>
+                            <Grid ColumnDefinitions="Auto,Auto" RowDefinitions="Auto" ColumnSpacing="10">
+                                <NumericUpDown Grid.Column="0"
+                                               Value="{Binding GroundTempC}"
+                                               Minimum="-50" Maximum="50"
+                                               Increment="1" FormatString="F0"
+                                               Width="140"
+                                               GotFocus="NumericUpDown_GotFocus"/>
+                                <TextBlock Grid.Column="1" Text="°C" VerticalAlignment="Center"/>
+                            </Grid>
                         </StackPanel>
                     </Border>
 
                     <!-- Wind Data Inputs -->
-                    <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="5" Margin="0,0,0,10">
+                    <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Text="Wind Data" FontWeight="Bold" Margin="0,0,0,5"/>
-                            <StackPanel Spacing="10">
-                            <!-- Ground Wind -->
-                            <Border BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="0,5,0,5">
+                            <TextBlock Classes="sectionTitle" Text="Wind Data"/>
+
+                            <!-- Ground -->
+                            <Border Classes="rowDivider">
                                 <StackPanel>
-                                    <TextBlock Text="Ground Level (0m)" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                    <StackPanel Spacing="5" Margin="5,0,0,0">
-                                        <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <TextBlock Text="Speed:" Width="80" VerticalAlignment="Center"/>
-                                            <NumericUpDown Value="{Binding GroundWindSpeed}" 
-                                                           Minimum="0" Maximum="999" 
-                                                           Increment="1" FormatString="F0"
-                                                           Width="150" Margin="0,0,10,0"
-                                                           GotFocus="NumericUpDown_GotFocus"/>
-                                            <TextBlock Text="m/s" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <TextBlock Text="Direction:" Width="80" VerticalAlignment="Center"/>
-                                            <NumericUpDown Value="{Binding GroundWindDirection}" 
-                                                           Minimum="0" Maximum="359" 
-                                                           Increment="1" FormatString="F0"
-                                                           Width="150" Margin="0,0,10,0"
-                                                           GotFocus="NumericUpDown_GotFocus"/>
-                                            <TextBlock Text="°" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </StackPanel>
+                                    <TextBlock Classes="subTitle" Text="Ground Level (0m)"/>
+                                    <Grid ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="8" Margin="6,0,0,0">
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Speed:"/>
+                                        <NumericUpDown Grid.Row="0" Grid.Column="1"
+                                                       Value="{Binding GroundWindSpeed}"
+                                                       Minimum="0" Maximum="999"
+                                                       Increment="1" FormatString="F0"
+                                                       Width="160"
+                                                       GotFocus="NumericUpDown_GotFocus"/>
+                                        <TextBlock Grid.Row="0" Grid.Column="2" Text="m/s" VerticalAlignment="Center"/>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Direction:"/>
+                                        <NumericUpDown Grid.Row="1" Grid.Column="1"
+                                                       Value="{Binding GroundWindDirection}"
+                                                       Minimum="0" Maximum="359"
+                                                       Increment="1" FormatString="F0"
+                                                       Width="160"
+                                                       GotFocus="NumericUpDown_GotFocus"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="2" Text="°" VerticalAlignment="Center"/>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
 
-                            <!-- 2000m Wind -->
-                            <Border BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="0,5,0,5">
+                            <!-- 2000m -->
+                            <Border Classes="rowDivider">
                                 <StackPanel>
-                                    <TextBlock Text="2000m Altitude" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                    <StackPanel Spacing="5" Margin="5,0,0,0">
-                                        <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <TextBlock Text="Speed:" Width="80" VerticalAlignment="Center"/>
-                                            <NumericUpDown Value="{Binding Wind2000mSpeed}" 
-                                                           Minimum="0" Maximum="999" 
-                                                           Increment="1" FormatString="F0"
-                                                           Width="150" Margin="0,0,10,0"
-                                                           GotFocus="NumericUpDown_GotFocus"/>
-                                            <TextBlock Text="m/s" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <TextBlock Text="Direction:" Width="80" VerticalAlignment="Center"/>
-                                            <NumericUpDown Value="{Binding Wind2000mDirection}" 
-                                                           Minimum="0" Maximum="359" 
-                                                           Increment="1" FormatString="F0"
-                                                           Width="150" Margin="0,0,10,0"
-                                                           GotFocus="NumericUpDown_GotFocus"/>
-                                            <TextBlock Text="°" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </StackPanel>
+                                    <TextBlock Classes="subTitle" Text="2000m Altitude"/>
+                                    <Grid ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="8" Margin="6,0,0,0">
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Speed:"/>
+                                        <NumericUpDown Grid.Row="0" Grid.Column="1"
+                                                       Value="{Binding Wind2000mSpeed}"
+                                                       Minimum="0" Maximum="999"
+                                                       Increment="1" FormatString="F0"
+                                                       Width="160"
+                                                       GotFocus="NumericUpDown_GotFocus"/>
+                                        <TextBlock Grid.Row="0" Grid.Column="2" Text="m/s" VerticalAlignment="Center"/>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Direction:"/>
+                                        <NumericUpDown Grid.Row="1" Grid.Column="1"
+                                                       Value="{Binding Wind2000mDirection}"
+                                                       Minimum="0" Maximum="359"
+                                                       Increment="1" FormatString="F0"
+                                                       Width="160"
+                                                       GotFocus="NumericUpDown_GotFocus"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="2" Text="°" VerticalAlignment="Center"/>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
 
-                            <!-- 8000m Wind -->
-                            <Border Padding="0,5,0,0">
-                                <StackPanel>
-                                    <TextBlock Text="8000m Altitude" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                    <StackPanel Spacing="5" Margin="5,0,0,0">
-                                        <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <TextBlock Text="Speed:" Width="80" VerticalAlignment="Center"/>
-                                            <NumericUpDown Value="{Binding Wind8000mSpeed}" 
-                                                           Minimum="0" Maximum="999" 
-                                                           Increment="1" FormatString="F0"
-                                                           Width="150" Margin="0,0,10,0"
-                                                           GotFocus="NumericUpDown_GotFocus"/>
-                                            <TextBlock Text="m/s" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <TextBlock Text="Direction:" Width="80" VerticalAlignment="Center"/>
-                                            <NumericUpDown Value="{Binding Wind8000mDirection}" 
-                                                           Minimum="0" Maximum="359" 
-                                                           Increment="1" FormatString="F0"
-                                                           Width="150" Margin="0,0,10,0"
-                                                           GotFocus="NumericUpDown_GotFocus"/>
-                                            <TextBlock Text="°" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
+                            <!-- 8000m -->
+                            <StackPanel>
+                                <TextBlock Classes="subTitle" Text="8000m Altitude" Margin="0,8,0,0"/>
+                                <Grid ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="8" Margin="6,0,0,0">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Speed:"/>
+                                    <NumericUpDown Grid.Row="0" Grid.Column="1"
+                                                   Value="{Binding Wind8000mSpeed}"
+                                                   Minimum="0" Maximum="999"
+                                                   Increment="1" FormatString="F0"
+                                                   Width="160"
+                                                   GotFocus="NumericUpDown_GotFocus"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="m/s" VerticalAlignment="Center"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Direction:"/>
+                                    <NumericUpDown Grid.Row="1" Grid.Column="1"
+                                                   Value="{Binding Wind8000mDirection}"
+                                                   Minimum="0" Maximum="359"
+                                                   Increment="1" FormatString="F0"
+                                                   Width="160"
+                                                   GotFocus="NumericUpDown_GotFocus"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="°" VerticalAlignment="Center"/>
+                                </Grid>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -153,281 +220,275 @@
             </ScrollViewer>
 
             <!-- Action Buttons - Always visible at bottom -->
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,10,0,0">
-                <Button Content="Calculate" 
-                        Command="{Binding CalculateCommand}" 
-                        Padding="20,5"/>
-                <Button Content="Clear" 
-                        Command="{Binding ClearInputsCommand}" 
-                        Padding="20,5"/>
+            <StackPanel Grid.Row="1"
+                        Orientation="Horizontal"
+                        Spacing="10"
+                        HorizontalAlignment="Center"
+                        Margin="0,10,0,0">
+                <Button Content="Clear"
+                        Command="{Binding ClearInputsCommand}"
+                        Padding="20,6"/>
             </StackPanel>
         </Grid>
 
-        <!-- Results Section -->
-        <Grid Grid.Row="1" Grid.Column="1" RowDefinitions="Auto,Auto,*,Auto">
-            <!-- Mission Info Section -->
-            <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,0,0,10" Background="White">
+        <!-- =========================================================
+             MIDDLE: Results
+             ========================================================= -->
+        <Grid Grid.Row="0" Grid.Column="1" RowDefinitions="Auto,*,Auto">
+
+            <!-- Mission Info -->
+            <Border Grid.Row="0" Classes="card" Margin="0,0,0,10">
                 <StackPanel Spacing="6">
-                    <TextBlock Text="Mission Information" FontWeight="Bold" FontSize="13" Margin="0,0,0,5" Foreground="Black"/>
-                    <StackPanel Spacing="4">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Theatre:" FontWeight="SemiBold" MinWidth="70" Foreground="Black"/>
-                            <TextBlock Text="{Binding MissionTheatre, TargetNullValue='Not available'}" 
-                                       VerticalAlignment="Center" Foreground="Black"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Sortie:" FontWeight="SemiBold" MinWidth="70" Foreground="Black"/>
-                            <TextBlock Text="{Binding MissionSortie, TargetNullValue='Not available'}" 
-                                       VerticalAlignment="Center" Foreground="Black"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Start Time:" FontWeight="SemiBold" MinWidth="70" Foreground="Black"/>
-                            <TextBlock Text="{Binding MissionStartTime, TargetNullValue='Not available'}" 
-                                       VerticalAlignment="Center" Foreground="Black"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Source:" FontWeight="SemiBold" MinWidth="70" Foreground="Black"/>
-                            <TextBlock Text="{Binding DataSource, TargetNullValue='Not available'}" 
-                                       VerticalAlignment="Center" Foreground="Black"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Updated:" FontWeight="SemiBold" MinWidth="70" Foreground="Black"/>
-                            <TextBlock Text="{Binding DataTimestamp, TargetNullValue='Not available'}" 
-                                       VerticalAlignment="Center"
-                                       FontSize="11" Foreground="Black"/>
-                        </StackPanel>
-                    </StackPanel>
+                    <TextBlock Classes="sectionTitle" Text="Mission Information"/>
+
+                    <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="10">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Width="90" Text="Theatre:"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding MissionTheatre, TargetNullValue='Not available'}"
+                                   FontFamily="Consolas, Courier New" FontSize="11"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Width="90" Text="Sortie:"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding MissionSortie, TargetNullValue='Not available'}"
+                                   FontFamily="Consolas, Courier New" FontSize="11"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Width="90" Text="Start Time:"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding MissionStartTime, TargetNullValue='Not available'}"
+                                   FontFamily="Consolas, Courier New" FontSize="11"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Width="90" Text="Source:"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding DataSource, TargetNullValue='Not available'}"
+                                   FontFamily="Consolas, Courier New" FontSize="11"/>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Width="90" Text="Updated:"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding DataTimestamp, TargetNullValue='Not available'}"
+                                   FontFamily="Consolas, Courier New" FontSize="10"/>
+                    </Grid>
                 </StackPanel>
             </Border>
 
-            <ScrollViewer Grid.Row="2">
-                <StackPanel Spacing="10">
-                <TextBlock Text="CDU Wind Lines" 
-                           FontSize="16" FontWeight="Bold" 
-                           Margin="0,0,0,10"/>
+            <!-- Wind lines (table) -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <Border Classes="card">
+                    <StackPanel Spacing="10">
+                        <TextBlock Classes="sectionTitle" Text="CDU Wind Lines"/>
 
-                <!-- Table Container -->
-                <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="3">
-                    <Grid>
-                        <!-- Table Header -->
-                        <Border BorderBrush="Gray" BorderThickness="0,0,0,2" 
-                                Background="#F0F0F0" 
-                                Padding="8,10" 
-                                CornerRadius="3,3,0,0">
-                            <Grid ColumnDefinitions="90,110,110,110,130">
-                                <TextBlock Grid.Column="0" Text="Alt (kft)" FontWeight="Bold" FontSize="13" Foreground="Black"/>
-                                <TextBlock Grid.Column="1" Text="Bearing (°)" FontWeight="Bold" FontSize="13" Foreground="Black"/>
-                                <TextBlock Grid.Column="2" Text="Speed (kt)" FontWeight="Bold" FontSize="13" Foreground="Black"/>
-                                <TextBlock Grid.Column="3" Text="Temp (°C)" FontWeight="Bold" FontSize="13" Foreground="Black"/>
-                                <TextBlock Grid.Column="4" Text="BRG+SPD" FontWeight="Bold" FontSize="13" Foreground="Black"/>
+                        <Border Classes="tableFrame" MinHeight="280">
+                            <Grid>
+                                <!-- Header -->
+                                <Border Classes="tableHeader">
+                                    <Grid ColumnDefinitions="90,110,110,110,130">
+                                        <TextBlock Grid.Column="0" Text="Alt (kft)" FontWeight="Bold" FontSize="12"/>
+                                        <TextBlock Grid.Column="1" Text="Bearing (°)" FontWeight="Bold" FontSize="12"/>
+                                        <TextBlock Grid.Column="2" Text="Speed (kt)" FontWeight="Bold" FontSize="12"/>
+                                        <TextBlock Grid.Column="3" Text="Temp (°C)" FontWeight="Bold" FontSize="12"/>
+                                        <TextBlock Grid.Column="4" Text="BRG+SPD" FontWeight="Bold" FontSize="12"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Rows -->
+                                <ItemsControl ItemsSource="{Binding Results}" Margin="0,44,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="#404040"
+                                                    BorderThickness="0,1,0,0"
+                                                    Background="#1E1E1E"
+                                                    Padding="10,10"
+                                                    MinHeight="40">
+                                                <Grid ColumnDefinitions="90,110,110,110,130">
+                                                    <TextBlock Grid.Column="0" Text="{Binding AltText}"
+                                                               FontFamily="Consolas, Courier New" FontSize="12"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding BrgText}"
+                                                               FontFamily="Consolas, Courier New" FontSize="12"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding SpdText}"
+                                                               FontFamily="Consolas, Courier New" FontSize="12"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding TmpText}"
+                                                               FontFamily="Consolas, Courier New" FontSize="12"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="4" Text="{Binding BrgPlusSpd}"
+                                                               FontFamily="Consolas, Courier New"
+                                                               FontSize="12"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="#4A9EFF"
+                                                               VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </Grid>
                         </Border>
-
-                        <!-- Table Rows -->
-                        <ItemsControl ItemsSource="{Binding Results}" Margin="0,42,0,0">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="#E0E0E0" 
-                                            BorderThickness="0,1,0,0" 
-                                            Padding="8,10">
-                                        <Grid ColumnDefinitions="90,110,110,110,130">
-                                            <TextBlock Grid.Column="0" 
-                                                       Text="{Binding AltText}" 
-                                                       FontFamily="Consolas, Courier New"
-                                                       FontSize="13"
-                                                       Foreground="Black"
-                                                       VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="1" 
-                                                       Text="{Binding BrgText}" 
-                                                       FontFamily="Consolas, Courier New"
-                                                       FontSize="13"
-                                                       Foreground="Black"
-                                                       VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="2" 
-                                                       Text="{Binding SpdText}"
-                                                       FontFamily="Consolas, Courier New"
-                                                       FontSize="13"
-                                                       Foreground="Black"
-                                                       VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="3" 
-                                                       Text="{Binding TmpText}" 
-                                                       FontFamily="Consolas, Courier New"
-                                                       FontSize="13"
-                                                       Foreground="Black"
-                                                       VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="4" 
-                                                       Text="{Binding BrgPlusSpd}" 
-                                                       FontFamily="Consolas, Courier New"
-                                                       FontSize="13"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="#0066CC"
-                                                       VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </Grid>
+                    </StackPanel>
                 </Border>
-
-                    <Button Content="Copy All to Clipboard" 
-                            Command="{Binding CopyToClipboardCommand}"
-                            HorizontalAlignment="Center"
-                            Padding="20,5"
-                            Margin="0,10,0,0"/>
-                </StackPanel>
             </ScrollViewer>
 
-            <!-- DCS Connection - Snapped to bottom -->
-            <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="5" Margin="0,10,0,0">
+            <!-- DCS Connection (bottom) -->
+            <Border Grid.Row="2" Classes="card" Margin="0,10,0,0">
                 <StackPanel>
-                    <TextBlock Text="DCS Connection" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <TextBlock Classes="sectionTitle" Text="DCS Connection"/>
+
                     <StackPanel Spacing="10">
-                        <!-- Connection Mode Selection -->
-                        <StackPanel Spacing="5">
-                            <TextBlock Text="Connection Mode:" FontWeight="SemiBold" Margin="0,0,0,3"/>
-                            <RadioButton Content="File-based (Read-only)" 
-                                        IsChecked="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=FileBased}"
-                                        GroupName="ConnectionMode"
-                                        Command="{Binding SetConnectionModeCommand}"
-                                        CommandParameter="FileBased"/>
-                            <RadioButton Content="TCP Socket (Real-time)" 
-                                        IsChecked="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=TcpSocket}"
-                                        GroupName="ConnectionMode"
-                                        Command="{Binding SetConnectionModeCommand}"
-                                        CommandParameter="TcpSocket"/>
-                        </StackPanel>
-                        
+
                         <!-- Connection Status -->
-                        <StackPanel Orientation="Horizontal" Spacing="5">
-                            <Ellipse Width="12" Height="12" Margin="0,0,5,0">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Ellipse Width="12" Height="12">
                                 <Ellipse.Fill>
                                     <Binding Path="IsDcsConnected" Converter="{StaticResource BoolToColorConverter}"/>
                                 </Ellipse.Fill>
                             </Ellipse>
-                            <TextBlock Text="{Binding IsDcsConnected, Converter={StaticResource BoolToStatusConverter}}" 
+                            <TextBlock Text="{Binding IsDcsConnected, Converter={StaticResource BoolToStatusConverter}}"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
-                        
-                        <!-- File-based mode controls -->
-                        <StackPanel IsVisible="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=FileBased}">
-                            <CheckBox Content="Auto-update from DCS" 
-                                      IsChecked="{Binding AutoUpdate}"/>
-                            <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,5,0,0">
-                                <TextBox Text="{Binding ExportFilePath}" 
-                                         Watermark="Export file path..."
-                                         IsReadOnly="True" 
-                                         Margin="0,0,5,0"/>
-                                <Button Content="Browse..." 
-                                        Command="{Binding BrowseExportPathCommand}"
-                                        Padding="10,5"/>
-                            </StackPanel>
-                        </StackPanel>
-                        
-                        <!-- TCP Socket mode controls -->
-                        <StackPanel IsVisible="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=TcpSocket}" Spacing="5">
-                            <CheckBox Content="Auto-update from DCS" 
-                                      IsChecked="{Binding AutoUpdate}"/>
-                            
-                            <!-- TCP Port -->
-                            <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,5,0,0">
-                                <TextBlock Text="TCP Port:" 
-                                           VerticalAlignment="Center" 
-                                           Width="80"/>
-                                <NumericUpDown Value="{Binding TcpPort}" 
-                                              Minimum="1024" 
-                                              Maximum="65535" 
-                                              Width="100"
-                                              FormatString="0"/>
-                            </StackPanel>
-                            
-                            <!-- TCP Server Control -->
-                            <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,5,0,0">
-                                <Button Content="Start TCP Server" 
-                                       Command="{Binding StartTcpServerCommand}"
-                                       IsEnabled="{Binding IsTcpServerRunning, Converter={StaticResource BoolInvertConverter}}"
-                                       Padding="15,5"
-                                       ToolTip.Tip="Start the TCP server to receive data from DCS"/>
-                                <Button Content="Stop TCP Server" 
-                                       Command="{Binding StopTcpServerCommand}"
-                                       IsEnabled="{Binding IsTcpServerRunning}"
-                                       Padding="15,5"
-                                       ToolTip.Tip="Stop the TCP server"/>
-                            </StackPanel>
-                            
-                            <!-- Error Message -->
-                            <TextBlock Text="{Binding ListenerError}" 
-                                      Foreground="Red" 
-                                      TextWrapping="Wrap"
-                                      IsVisible="{Binding ListenerError, Converter={StaticResource BoolInvertConverter}}"
-                                      Margin="0,5,0,0"/>
-                            
-                            <!-- CDU Send Section -->
-                            <StackPanel Spacing="5" Margin="0,5,0,0">
-                                <!-- Send/Cancel Button -->
-                                <Button Content="Send Data to CDU" 
-                                        Command="{Binding SendToCduCommand}"
-                                        IsEnabled="{Binding CanSendToCdu}"
-                                        IsVisible="{Binding IsSendingToCdu, Converter={StaticResource BoolInvertConverter}}"
-                                        Padding="20,5"
-                                        HorizontalAlignment="Left"
-                                        ToolTip.Tip="Only available in TCP Socket mode when connected"/>
-                                
-                                <Button Content="Cancel" 
-                                        Command="{Binding CancelSendToCduCommand}"
-                                        IsEnabled="{Binding IsSendingToCdu}"
-                                        IsVisible="{Binding IsSendingToCdu}"
-                                        Padding="20,5"
-                                        HorizontalAlignment="Left"
-                                        Background="#DC3545"
-                                        Foreground="White"
-                                        ToolTip.Tip="Cancel the current CDU sequence"/>
-                                
-                                <!-- Progress Indicator -->
-                                <StackPanel IsVisible="{Binding IsSendingToCdu}" 
-                                            Orientation="Horizontal" 
-                                            Spacing="10"
-                                            Margin="0,5,0,0">
-                                    <ProgressBar IsIndeterminate="True" 
-                                                 Width="200" 
-                                                 Height="20"
-                                                 IsVisible="{Binding IsSendingToCdu}"/>
-                                    <TextBlock Text="{Binding CduSendProgress}" 
-                                               VerticalAlignment="Center"
-                                               FontWeight="SemiBold"
-                                               Foreground="#0066CC"/>
+
+                        <!-- Settings -->
+                        <Expander Header="Settings"
+                                  IsExpanded="{Binding IsSettingsExpanded}">
+                            <StackPanel Spacing="12" Margin="4,10,0,0">
+
+                                <!-- Connection Mode -->
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Connection Mode:" FontWeight="SemiBold" FontSize="11"/>
+                                    <RadioButton Content="TCP Socket (Default)"
+                                                 IsChecked="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=TcpSocket}"
+                                                 GroupName="ConnectionMode"
+                                                 Command="{Binding SetConnectionModeCommand}"
+                                                 CommandParameter="TcpSocket"/>
+                                    <RadioButton Content="File-based (Read-only)"
+                                                 IsChecked="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=FileBased}"
+                                                 GroupName="ConnectionMode"
+                                                 Command="{Binding SetConnectionModeCommand}"
+                                                 CommandParameter="FileBased"/>
                                 </StackPanel>
-                                
-                                <!-- Debug Log (Collapsible) -->
-                                <Expander Header="Debug Log" 
-                                          IsExpanded="{Binding IsDebugLogExpanded}"
-                                          Margin="0,5,0,0">
-                                    <Border BorderBrush="Gray" 
-                                            BorderThickness="1" 
-                                            CornerRadius="3" 
-                                            Background="#F8F9FA"
-                                            MaxHeight="200">
-                                        <ScrollViewer>
-                                            <ItemsControl ItemsSource="{Binding CduDebugLog}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock Text="{Binding}" 
-                                                                   FontFamily="Consolas, Courier New"
-                                                                   FontSize="10"
-                                                                   Foreground="#333"
-                                                                   Margin="5,2"
-                                                                   TextWrapping="Wrap"/>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </ScrollViewer>
-                                    </Border>
-                                </Expander>
+
+                                <!-- File mode -->
+                                <StackPanel IsVisible="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=FileBased}"
+                                            Spacing="8">
+                                    <CheckBox Content="Auto-update from DCS"
+                                              IsChecked="{Binding AutoUpdate}"/>
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <TextBox Grid.Column="0"
+                                                 Text="{Binding ExportFilePath}"
+                                                 Watermark="Export file path..."
+                                                 IsReadOnly="True"/>
+                                        <Button Grid.Column="1"
+                                                Content="Browse..."
+                                                Command="{Binding BrowseExportPathCommand}"
+                                                Padding="12,6"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- TCP mode -->
+                                <StackPanel IsVisible="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=TcpSocket}"
+                                            Spacing="8">
+                                    <CheckBox Content="Auto-update from DCS"
+                                              IsChecked="{Binding AutoUpdate}"/>
+
+                                    <Grid ColumnDefinitions="90,Auto" ColumnSpacing="10">
+                                        <TextBlock Grid.Column="0" Classes="label" Width="90" Text="TCP Port:"/>
+                                        <NumericUpDown Grid.Column="1"
+                                                       Value="{Binding TcpPort}"
+                                                       Minimum="1024"
+                                                       Maximum="65535"
+                                                       Width="140"
+                                                       FormatString="0"
+                                                       GotFocus="NumericUpDown_GotFocus"/>
+                                    </Grid>
+
+                                    <Button Command="{Binding ToggleTcpServerCommand}"
+                                            IsEnabled="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=TcpSocket}"
+                                            Padding="15,6"
+                                            HorizontalAlignment="Left">
+                                        <Button.Content>
+                                            <Binding Path="IsTcpServerRunning"
+                                                     Converter="{StaticResource BoolToContentConverter}"
+                                                     ConverterParameter="Stop TCP Server|Start TCP Server"/>
+                                        </Button.Content>
+                                    </Button>
+
+                                    <TextBlock Text="{Binding ListenerError}"
+                                               Foreground="#FF6B6B"
+                                               TextWrapping="Wrap"
+                                               IsVisible="{Binding ListenerError, Converter={StaticResource BoolInvertConverter}}"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
                             </StackPanel>
+                        </Expander>
+
+                        <!-- CDU Send -->
+                        <StackPanel Spacing="8">
+                            <Button Classes="bigAction"
+                                    Content="Send Data to CDU"
+                                    Command="{Binding SendToCduCommand}"
+                                    IsEnabled="{Binding CanSendToCdu}"
+                                    IsVisible="{Binding IsSendingToCdu, Converter={StaticResource BoolInvertConverter}}"
+                                    ToolTip.Tip="Send calculated wind data to the CDU via DCS-BIOS"/>
+
+                            <Button Classes="bigAction danger"
+                                    Content="Cancel"
+                                    Command="{Binding CancelSendToCduCommand}"
+                                    IsEnabled="{Binding IsSendingToCdu}"
+                                    IsVisible="{Binding IsSendingToCdu}"
+                                    ToolTip.Tip="Cancel the current CDU sequence"/>
+
+                            <Grid IsVisible="{Binding IsSendingToCdu}" ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,4,0,0">
+                                <ProgressBar Grid.Column="0"
+                                             IsIndeterminate="True"
+                                             Width="200"
+                                             Height="18"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding CduSendProgress}"
+                                           VerticalAlignment="Center"
+                                           FontWeight="SemiBold"
+                                           Foreground="#4A9EFF"/>
+                            </Grid>
                         </StackPanel>
+
                     </StackPanel>
                 </StackPanel>
             </Border>
         </Grid>
+
+        <!-- =========================================================
+             RIGHT: Debug Log Panel
+             ========================================================= -->
+        <Border Grid.Row="0" Grid.Column="2"
+                BorderBrush="#505050"
+                BorderThickness="1,0,0,0"
+                Background="#3A3A3A"
+                Width="350"
+                Margin="12,0,0,0">
+            <Grid RowDefinitions="Auto,*">
+                <Border Grid.Row="0"
+                        Background="#4A4A4A"
+                        Padding="12,10"
+                        BorderBrush="#505050"
+                        BorderThickness="0,0,0,1">
+                    <TextBlock Text="CDU Debug Log"
+                               FontWeight="Bold"
+                               FontSize="13"
+                               Foreground="White"
+                               VerticalAlignment="Center"/>
+                </Border>
+
+                <ScrollViewer x:Name="DebugLogScrollViewer"
+                              Grid.Row="1"
+                              VerticalScrollBarVisibility="Auto"
+                              Background="#3A3A3A">
+                    <ItemsControl ItemsSource="{Binding CduDebugLog}" Margin="8">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}"
+                                           FontFamily="Consolas, Courier New"
+                                           FontSize="11"
+                                           Foreground="White"
+                                           Margin="4,2"
+                                           TextWrapping="Wrap"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

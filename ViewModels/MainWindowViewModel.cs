@@ -11,6 +11,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LASTE_Mate.Core;
 using LASTE_Mate.Models;
 using LASTE_Mate.Services;
 
@@ -82,6 +83,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private ObservableCollection<string> _cduDebugLog = new();
 
     [ObservableProperty] private bool _isDebugLogExpanded;
+    [ObservableProperty] private bool _isSettingsExpanded = false;
 
     private CancellationTokenSource? _cduSendCancellationTokenSource;
 
@@ -262,7 +264,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             if (data.Mission != null)
             {
                 MissionTheatre = data.Mission.Theatre;
-                MissionSortie = data.Mission.Sortie;
+                MissionSortie = SanitizeSortieValue(data.Mission.Sortie);
                 MissionStartTime = FormatStartTime(data.Mission.StartTime);
 
                 AutoSelectMapFromTheatre(MissionTheatre);
@@ -305,6 +307,29 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var m = (s % 3600) / 60;
         var sec = s % 60;
         return $"{h:D2}:{m:D2}:{sec:D2}";
+    }
+
+    private static string? SanitizeSortieValue(string? sortie)
+    {
+        if (string.IsNullOrWhiteSpace(sortie))
+            return null;
+
+        // Check if it's an unresolved DictKey (e.g., "DictKey_sortie_5")
+        if (sortie.StartsWith("DictKey_", StringComparison.OrdinalIgnoreCase))
+        {
+            // Try to extract the number from patterns like "DictKey_sortie_5" or "DictKey_sortie_10"
+            var parts = sortie.Split('_');
+            if (parts.Length >= 3 && int.TryParse(parts[^1], out var sortieNumber))
+            {
+                return $"Sortie {sortieNumber}";
+            }
+            
+            // If we can't parse it, return null to show "Not available"
+            return null;
+        }
+
+        // Return the original value if it's not a DictKey
+        return sortie;
     }
 
     private void AutoSelectMapFromTheatre(string? theatre)
@@ -377,6 +402,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             Wind2000mDirection = 0;
             Wind8000mSpeed = 0;
             Wind8000mDirection = 0;
+            
+            // Clear mission information
+            MissionTheatre = null;
+            MissionSortie = null;
+            MissionStartTime = null;
+            DataSource = null;
+            DataTimestamp = null;
+            
+            // Clear CDU wind lines
+            Results.Clear();
+            RaiseCanSendToCdu();
         }
         finally
         {
@@ -447,24 +483,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         return null;
-    }
-
-    [RelayCommand]
-    private async Task CopyToClipboard()
-    {
-        if (Results.Count == 0) return;
-
-        var mainWindow = GetMainWindow();
-        if (mainWindow == null) return;
-
-        var topLevel = Avalonia.Controls.TopLevel.GetTopLevel(mainWindow);
-        if (topLevel?.Clipboard == null) return;
-
-        var lines = Results.Select(r =>
-            $"ALT: {r.AltText} | BRG: {r.BrgText}° | SPD: {r.SpdText}kt | TMP: {r.TmpText}°C | BRG+SPD: {r.BrgPlusSpd}"
-        );
-
-        await topLevel.Clipboard.SetTextAsync(string.Join(Environment.NewLine, lines));
     }
 
     [RelayCommand]
@@ -584,6 +602,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         StopTcpServerInternal();
         SaveConfig();
+    }
+
+    [RelayCommand]
+    private void ToggleTcpServer()
+    {
+        if (IsTcpServerRunning)
+        {
+            StopTcpServer();
+        }
+        else
+        {
+            StartTcpServer();
+        }
     }
 
     private void StartTcpServerInternal()

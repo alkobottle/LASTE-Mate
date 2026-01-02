@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace LASTE_Mate;
+namespace LASTE_Mate.Core;
 
 public static class WindRecalculator
 {

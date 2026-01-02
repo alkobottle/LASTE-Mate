@@ -2,12 +2,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="LASTE_Mate.App"
              xmlns:local="using:LASTE_Mate"
+             xmlns:core="using:LASTE_Mate.Core"
              xmlns:converters="using:LASTE_Mate.Converters"
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.DataTemplates>
-        <local:ViewLocator/>
+        <core:ViewLocator/>
     </Application.DataTemplates>
   
     <Application.Resources>

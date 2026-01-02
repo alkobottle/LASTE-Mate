@@ -4,7 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using LASTE_Mate.ViewModels;
 
-namespace LASTE_Mate;
+namespace LASTE_Mate.Core;
 
 /// <summary>
 /// Given a view model, returns the corresponding view if possible.

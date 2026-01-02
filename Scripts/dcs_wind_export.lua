@@ -339,9 +339,38 @@ local function export_mission_wind(reason)
     }
 
     if type(mOrErr) == "table" then
+        local rawSortie = mOrErr.sortie or mOrErr.Sortie
+        local resolvedSortie = rawSortie
+        
+        -- Try to resolve localization keys (e.g., "DictKey_sortie_5" -> "Sortie 5")
+        if rawSortie and type(rawSortie) == "string" and rawSortie:match("^DictKey_") then
+            if localize then
+                resolvedSortie = localize(rawSortie)
+                -- If localize didn't resolve it (returns the same key), try to extract the number
+                if resolvedSortie == rawSortie then
+                    local parts = {}
+                    for part in rawSortie:gmatch("[^_]+") do
+                        table.insert(parts, part)
+                    end
+                    if #parts >= 3 and tonumber(parts[#parts]) then
+                        resolvedSortie = "Sortie " .. parts[#parts]
+                    end
+                end
+            else
+                -- localize function not available, try to extract number manually
+                local parts = {}
+                for part in rawSortie:gmatch("[^_]+") do
+                    table.insert(parts, part)
+                end
+                if #parts >= 3 and tonumber(parts[#parts]) then
+                    resolvedSortie = "Sortie " .. parts[#parts]
+                end
+            end
+        end
+        
         data.mission = {
             theatre = mOrErr.theatre or mOrErr.Theatre,
-            sortie = mOrErr.sortie or mOrErr.Sortie,
+            sortie = resolvedSortie,
             start_time = mOrErr.start_time or mOrErr.StartTime,
         }
     end
