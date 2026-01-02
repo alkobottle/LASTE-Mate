@@ -5,15 +5,15 @@ This script exports wind data from DCS World to a JSON file or via TCP socket fo
 ## Installation
 
 1. Locate your DCS Saved Games folder:
-   - **DCS OpenBeta**: `%USERPROFILE%\Saved Games\DCS.openbeta\`
    - **DCS Stable**: `%USERPROFILE%\Saved Games\DCS\`
+   - **DCS OpenBeta**: `%USERPROFILE%\Saved Games\DCS.openbeta\`
 
 2. Navigate to the `Scripts\Hooks\` folder (create it if it doesn't exist)
 
 3. Copy `dcs_wind_export.lua` to this folder:
    - The full path should be:
      - `%USERPROFILE%\Saved Games\DCS.openbeta\Scripts\Hooks\dcs_wind_export.lua`
-     - or `%USERPROFILE%\Saved Games\DCS\Scripts\Hooks\dcs_wind_export.lua`
+     - or `%USERPROFILE%\Saved Games\DCS.openbeta\Scripts\Hooks\dcs_wind_export.lua`
 
 4. Edit `dcs_wind_export.lua` and find the **CONFIGURATION** section at the top of the file (after the header comments) to configure the script (see Configuration section below)
 
@@ -24,11 +24,12 @@ Edit the `config` table in the **CONFIGURATION** section of `dcs_wind_export.lua
 ### Communication Mode
 
 ```lua
-mode = "file",  -- or "tcp"
+mode = "tcp",  -- or "file"
 ```
 
-- **"file"**: Write JSON to `Scripts\Export\wind_data.json` (for file-based communication)
-- **"tcp"**: Send JSON via TCP socket (for real-time communication, no file written)
+- **"tcp"** (Default): Send JSON via TCP socket when mission loads (no file written)
+- **"file"**: Write JSON to `Scripts\Export\wind_data.json` when mission loads (for file-based communication)
+
 
 ### TCP Settings (only used when mode = "tcp")
 
@@ -47,21 +48,21 @@ debug_mode = false,     -- true = verbose logging, false = essential only
 - **log_overwrite**: Set to `true` to overwrite the log file each time DCS starts (prevents large log files). Set to `false` to append to existing log.
 - **debug_mode**: Set to `true` for verbose debug logging (useful for troubleshooting). Set to `false` to only log errors, warnings, and successes.
 
-## File Mode (Default)
+## TCP Mode (Default)
+
+When `mode = "tcp"`:
+- JSON is sent via TCP to `<tcp_host>:<tcp_port>` when the mission loads
+- The script attempts to send the data up to 10 times with 1-second intervals until successful
+- **No JSON file is written** (only TCP communication)
+- Use this mode with LASTE-Mate's "TCP Socket" connection mode
+- **Note**: TCP mode requires LuaSocket. You may need to modify `MissionScripting.lua` to allow socket access (see Troubleshooting)
+
+## File Mode (Alternative)
 
 When `mode = "file"`:
 - JSON is written to: `%USERPROFILE%\Saved Games\DCS\Scripts\Export\wind_data.json`
 - File updates when mission loads
 - Use this mode with LASTE-Mate's "File-based (Read-only)" connection mode
-
-## TCP Mode
-
-When `mode = "tcp"`:
-- JSON is sent via TCP to `<tcp_host>:<tcp_port>` every second
-- **No JSON file is written** (only TCP communication)
-- Receives and executes button press commands from LASTE-Mate
-- Use this mode with LASTE-Mate's "TCP Socket (Real-time)" connection mode
-- **Note**: TCP mode requires LuaSocket. You may need to modify `MissionScripting.lua` to allow socket access (see Troubleshooting)
 
 ## Multiplayer Setup
 
@@ -76,24 +77,19 @@ When `mode = "tcp"`:
 
 ## Verification
 
+### TCP Mode (Default)
+1. Start DCS and load a mission
+2. Check the log file for "TCP client created" message
+3. In LASTE-Mate, select "TCP Socket" connection mode and start the TCP server
+4. The connection status should show as connected after the mission loads
+
 ### File Mode
 1. Start DCS and load a mission
 2. Check that `wind_data.json` is created in the `Scripts\Export\` folder
 3. The file should update when the mission loads
-4. Open the Wind Correction Calculator and configure it to read from this file path
-
-### TCP Mode
-1. Start DCS and load a mission
-2. Check the log file for "TCP client created" message
-3. In LASTE-Mate, select "TCP Socket (Real-time)" connection mode and start the TCP server
-4. The connection status should show as connected
+4. Open LASTE-Mate and configure it to read from this file path
 
 ## Troubleshooting
-
-### File Mode Issues
-- **File not updating**: Make sure DCS is running and a mission is loaded
-- **Script errors**: Check DCS log files for Lua errors
-- **Path issues**: Ensure the `Scripts\Hooks\` and `Scripts\Export\` folders exist
 
 ### TCP Mode Issues
 - **"LuaSocket not available"**: You need to enable LuaSocket in DCS:
@@ -106,6 +102,11 @@ When `mode = "tcp"`:
   - Make sure LASTE-Mate's TCP server is started
   - Check Windows Firewall isn't blocking the connection
   - Enable `debug_mode = true` in the script config to see detailed logs
+
+### File Mode Issues
+- **File not updating**: Make sure DCS is running and a mission is loaded
+- **Script errors**: Check DCS log files for Lua errors
+- **Path issues**: Ensure the `Scripts\Hooks\` and `Scripts\Export\` folders exist
 
 ### Log File Issues
 - **Log file too large**: Set `log_overwrite = true` in the config file
