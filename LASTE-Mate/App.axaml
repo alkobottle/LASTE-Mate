@@ -1,0 +1,25 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="LASTE_Mate.App"
+             xmlns:local="using:LASTE_Mate"
+             xmlns:converters="using:LASTE_Mate.Converters"
+             RequestedThemeVariant="Default">
+             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+    <Application.DataTemplates>
+        <local:ViewLocator/>
+    </Application.DataTemplates>
+  
+    <Application.Resources>
+        <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
+        <converters:BoolToStatusConverter x:Key="BoolToStatusConverter"/>
+        <converters:BoolToBorderBrushConverter x:Key="BoolToBorderBrushConverter"/>
+        <converters:BoolInvertConverter x:Key="BoolInvertConverter"/>
+        <converters:EnumToBoolConverter x:Key="EnumToBoolConverter"/>
+        <converters:BoolToContentConverter x:Key="BoolToContentConverter"/>
+    </Application.Resources>
+  
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+</Application>
