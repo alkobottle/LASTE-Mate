@@ -55,7 +55,6 @@ public partial class App : Application
     {
         // Register services as singletons to ensure single instance
         services.AddSingleton<DcsSocketService>();
-        services.AddSingleton<DcsDataService>();
         services.AddSingleton<DcsBiosService>();
         services.AddSingleton<AppConfigService>();
 

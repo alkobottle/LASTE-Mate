@@ -1,8 +1,8 @@
--- DCS Mission Wind Export (Unified - File and TCP modes)
+-- DCS Mission Wind Export (TCP Mode)
 --
 -- PURPOSE
 --   Exports the *mission/briefing* wind layers (Ground / 2000m / 8000m) to JSON for an external
---   wind correction calculator. Supports both file-based and TCP socket communication modes.
+--   wind correction calculator via TCP socket communication.
 --
 -- IMPORTANT (Multiplayer)
 --   In multiplayer, LoGetWindAtPoint() at/near ground can jitter and is not suitable for CDU entry.
@@ -13,13 +13,8 @@
 --        %USERPROFILE%\Saved Games\DCS\Scripts\Hooks\dcs_wind_export.lua
 --   2. Edit the CONFIGURATION section below to set mode, TCP port, and logging options
 --
--- OUTPUT (File Mode)
---   JSON written to:
---     %USERPROFILE%\Saved Games\DCS\Scripts\Export\wind_data.json
---
--- OUTPUT (TCP Mode)
+-- OUTPUT
 --   JSON sent via TCP to: <tcp_host>:<tcp_port> (configured in CONFIGURATION section)
---   JSON file is NOT written in TCP mode
 --
 -- LOG FILE
 --   %USERPROFILE%\Saved Games\DCS\Logs\wind_export_debug.log
@@ -41,10 +36,7 @@ local lfs = require("lfs")
 -- ============================================================================
 
 local config = {
-    -- Communication mode: "file" or "tcp"
-    mode = "tcp",
-
-    -- TCP configuration (only used when mode = "tcp")
+    -- TCP configuration
     tcp_host = "127.0.0.1",
     tcp_port = 10309,
 
@@ -58,7 +50,6 @@ local config = {
 -- ============================================================================
 
 -- Paths
-local outJson = lfs.writedir() .. [[Scripts\Export\wind_data.json]]
 local logPath = lfs.writedir() .. [[Logs\wind_export_debug.log]]
 
 
@@ -153,13 +144,6 @@ local function round1(x)
     return math.floor(x * 10 + 0.5) / 10
 end
 
-local function ensure_export_dir()
-    local base = lfs.writedir() .. [[Scripts]]
-    if not lfs.attributes(base) then lfs.mkdir(base) end
-
-    local dir = lfs.writedir() .. [[Scripts\Export]]
-    if not lfs.attributes(dir) then lfs.mkdir(dir) end
-end
 
 local function get_current_mission_weather()
     local opts = LoGetMissionOptions and LoGetMissionOptions()
@@ -211,12 +195,8 @@ local function layer_from_mission(src)
     }
 end
 
--- Initialize TCP socket (only in TCP mode)
+-- Initialize TCP socket
 local function init_tcp()
-    if config.mode ~= "tcp" then
-        return false
-    end
-
     local success, socket = pcall(function()
         return require("socket")
     end)
@@ -252,11 +232,11 @@ local function close_tcp()
     end
 end
 
--- Send data via TCP (only in TCP mode)
+-- Send data via TCP
 local function send_tcp_data(data)
-    if config.mode ~= "tcp" or not tcpClient then
+    if not tcpClient then
         if config.debug_mode then
-            log("DEBUG: send_tcp_data skipped - mode=" .. tostring(config.mode) .. ", tcpClient=" .. tostring(tcpClient))
+            log("DEBUG: send_tcp_data skipped - tcpClient=" .. tostring(tcpClient))
         end
         return false
     end
@@ -380,20 +360,10 @@ local function export_mission_wind(reason)
         data.groundTemp = math.floor(tonumber(temp) + 0.5)
     end
 
-    -- Export based on mode
-    if config.mode == "tcp" then
-        local sent = send_tcp_data(data)
-        if not sent then
-            return nil, "TCP send failed"
-        end
-    else
-        ensure_export_dir()
-        local f = io.open(outJson, "w")
-        if not f then
-            return nil, "cannot write " .. outJson
-        end
-        f:write(json_encode(data))
-        f:close()
+    -- Send via TCP
+    local sent = send_tcp_data(data)
+    if not sent then
+        return nil, "TCP send failed"
     end
 
     log(string.format(
@@ -425,10 +395,8 @@ local function reset_state(reason)
         log("STATE: reset (" .. tostring(reason) .. ")")
     end
 
-    if config.mode == "tcp" then
-        -- re-create TCP client for the next mission/session
-        init_tcp()
-    end
+    -- re-create TCP client for the next mission/session
+    init_tcp()
 end
 
 local function stop_sending(reason)
@@ -487,16 +455,13 @@ end
 -- Callback wiring (Hooks environment)
 -- -----------------------------------------------------------------------------
 
--- Initialize TCP on script load (if in TCP mode)
-local tcpInitSuccess = false
-if config.mode == "tcp" then
-    tcpInitSuccess = init_tcp()
-    if not tcpInitSuccess then
-        log("ERROR: Failed to initialize TCP socket. Check LuaSocket availability and MissionScripting.lua")
-    end
+-- Initialize TCP on script load
+local tcpInitSuccess = init_tcp()
+if not tcpInitSuccess then
+    log("ERROR: Failed to initialize TCP socket. Check LuaSocket availability and MissionScripting.lua")
 end
 
-log("wind export hook loaded (mode: " .. config.mode .. ", tcp_init: " .. tostring(tcpInitSuccess) .. ", port: " .. tostring(config.tcp_port) .. ")")
+log("wind export hook loaded (tcp_init: " .. tostring(tcpInitSuccess) .. ", port: " .. tostring(config.tcp_port) .. ")")
 
 local callbacks = {}
 

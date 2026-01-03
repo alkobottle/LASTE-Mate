@@ -82,15 +82,13 @@ public class AppConfigService
         }
 
         // Return default config (for new installations)
-               return new AppConfig
-               {
-                   ConnectionMode = "TcpSocket",
-                   TcpPort = 10309,
-                   ExportFilePath = DcsDataService.GetDefaultExportPath(),
-                   AutoUpdate = true,
+        return new AppConfig
+        {
+            TcpPort = 10309,
+            AutoUpdate = true,
             DcsBiosPort = 7778,
             TcpListenerEnabled = true
-               };
+        };
     }
 }
 
