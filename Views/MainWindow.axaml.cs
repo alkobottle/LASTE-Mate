@@ -99,7 +99,7 @@ public partial class MainWindow : Window
         }
         
         _isClosing = true;
-        System.Diagnostics.Debug.WriteLine("[MainWindow] Closing event fired");
+        Console.WriteLine("[MainWindow] Closing event fired");
         
         // Dispose resources - this will stop TCP listener and clean up
         if (DataContext is IDisposable disposable)
@@ -110,7 +110,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[MainWindow] Error disposing DataContext: {ex.Message}");
+                Console.WriteLine($"[MainWindow] Error disposing DataContext: {ex.Message}");
             }
         }
     }

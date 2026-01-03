@@ -39,11 +39,11 @@ public class AppConfigService
                 WriteIndented = true 
             });
             File.WriteAllText(_configFilePath, json);
-            System.Diagnostics.Debug.WriteLine($"Config saved to {_configFilePath}");
+            Console.WriteLine($"Config saved to {_configFilePath}");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error saving config: {ex.Message}");
+            Console.WriteLine($"Error saving config: {ex.Message}");
         }
     }
 
@@ -66,31 +66,31 @@ public class AppConfigService
                     if (needsMigration)
                     {
                         config.TcpListenerEnabled = true;
-                        System.Diagnostics.Debug.WriteLine("Config migration: Enabling TCP listener autostart");
+                        Console.WriteLine("Config migration: Enabling TCP listener autostart");
                         // Save the migrated config
                         SaveConfig(config);
                     }
                     
-                    System.Diagnostics.Debug.WriteLine($"Config loaded from {_configFilePath}, TcpListenerEnabled={config.TcpListenerEnabled}");
+                    Console.WriteLine($"Config loaded from {_configFilePath}, TcpListenerEnabled={config.TcpListenerEnabled}");
                     return config;
                 }
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error loading config: {ex.Message}");
+            Console.WriteLine($"Error loading config: {ex.Message}");
         }
 
         // Return default config (for new installations)
-        return new AppConfig
-        {
-            ConnectionMode = "TcpSocket",
-            TcpPort = 10309,
-            ExportFilePath = DcsDataService.GetDefaultExportPath(),
-            AutoUpdate = true,
+               return new AppConfig
+               {
+                   ConnectionMode = "TcpSocket",
+                   TcpPort = 10309,
+                   ExportFilePath = DcsDataService.GetDefaultExportPath(),
+                   AutoUpdate = true,
             DcsBiosPort = 7778,
             TcpListenerEnabled = true
-        };
+               };
     }
 }
 

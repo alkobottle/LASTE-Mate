@@ -57,11 +57,11 @@ public sealed class DcsBiosService : IDisposable
                 _receiveClient = new UdpClient(ReceivePort);
                 _receiveCancellationTokenSource = new CancellationTokenSource();
                 _receiveTask = Task.Run(() => ReceiveLoop(_receiveCancellationTokenSource.Token));
-                System.Diagnostics.Debug.WriteLine($"DcsBiosService: Started receiving on port {ReceivePort}");
+                Console.WriteLine($"DcsBiosService: Started receiving on port {ReceivePort}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"DcsBiosService: Failed to start receiving: {ex.Message}");
+                Console.WriteLine($"DcsBiosService: Failed to start receiving: {ex.Message}");
                 _receiveClient?.Dispose();
                 _receiveClient = null;
             }
@@ -88,7 +88,7 @@ public sealed class DcsBiosService : IDisposable
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"DcsBiosService: Receive error: {ex.Message}");
+                Console.WriteLine($"DcsBiosService: Receive error: {ex.Message}");
                 await Task.Delay(100, cancellationToken);
             }
         }
@@ -168,12 +168,12 @@ public sealed class DcsBiosService : IDisposable
             var endpoint = new IPEndPoint(Host, SendPort);
             await _sendClient.SendAsync(bytes, bytes.Length, endpoint);
 
-            System.Diagnostics.Debug.WriteLine($"DcsBiosService: Sent {control} {value} to {Host}:{SendPort}");
+            Console.WriteLine($"DcsBiosService: Sent {control} {value} to {Host}:{SendPort}");
             return true;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"DcsBiosService: Error sending {control} {value}: {ex.Message}");
+            Console.WriteLine($"DcsBiosService: Error sending {control} {value}: {ex.Message}");
             return false;
         }
     }
@@ -183,7 +183,7 @@ public sealed class DcsBiosService : IDisposable
     /// </summary>
     public async Task<bool> ClearCduErrorAsync()
     {
-        System.Diagnostics.Debug.WriteLine("DcsBiosService: Clearing CDU error with CLR");
+        Console.WriteLine("DcsBiosService: Clearing CDU error with CLR");
         var pressed = await SendControlAsync("CDU_CLR", 1);
         if (!pressed)
         {
@@ -219,7 +219,7 @@ public sealed class DcsBiosService : IDisposable
     {
         if (targetPosition != 0 && targetPosition != 2)
         {
-            System.Diagnostics.Debug.WriteLine($"DcsBiosService: Invalid PAGE rocker position {targetPosition}, must be 0 or 2");
+            Console.WriteLine($"DcsBiosService: Invalid PAGE rocker position {targetPosition}, must be 0 or 2");
             return false;
         }
 

@@ -76,7 +76,7 @@ public class DcsDataService : IDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error starting file watcher: {ex.Message}");
+            Console.WriteLine($"Error starting file watcher: {ex.Message}");
         }
     }
 
@@ -126,10 +126,10 @@ public class DcsDataService : IDisposable
                     // Debug logging
                     if (data != null)
                     {
-                        System.Diagnostics.Debug.WriteLine($"DcsDataService: Parsed data - Mission: {(data.Mission != null ? "exists" : "null")}, Source: {data.Source}, Timestamp: {data.Timestamp}");
+                        Console.WriteLine($"DcsDataService: Parsed data - Mission: {(data.Mission != null ? "exists" : "null")}, Source: {data.Source}, Timestamp: {data.Timestamp}");
                         if (data.Mission != null)
                         {
-                            System.Diagnostics.Debug.WriteLine($"  Mission Theatre: {data.Mission.Theatre}, Sortie: {data.Mission.Sortie}, StartTime: {data.Mission.StartTime}");
+                            Console.WriteLine($"  Mission Theatre: {data.Mission.Theatre}, Sortie: {data.Mission.Sortie}, StartTime: {data.Mission.StartTime}");
                         }
                     }
                     
@@ -144,11 +144,11 @@ public class DcsDataService : IDisposable
         }
         catch (JsonException ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error parsing JSON: {ex.Message}");
+            Console.WriteLine($"Error parsing JSON: {ex.Message}");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error reading export file: {ex.Message}");
+            Console.WriteLine($"Error reading export file: {ex.Message}");
         }
 
         NotifyConnectionStatus(false);

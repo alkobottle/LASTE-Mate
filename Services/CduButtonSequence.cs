@@ -189,7 +189,7 @@ public class CduButtonSequence
 
                 if (!success)
                 {
-                    System.Diagnostics.Debug.WriteLine($"CduButtonSequence: Failed to execute command: {cmd.Control} {cmd.Value}");
+                    Console.WriteLine($"CduButtonSequence: Failed to execute command: {cmd.Control} {cmd.Value}");
                     return false;
                 }
 
@@ -209,7 +209,7 @@ public class CduButtonSequence
                     if (await CheckAndRecoverFromErrorAsync(cancellationToken))
                     {
                         // Error was detected and cleared, retry the command
-                        System.Diagnostics.Debug.WriteLine($"CduButtonSequence: Retrying command after error recovery: {cmd.Control} {cmd.Value}");
+                        Console.WriteLine($"CduButtonSequence: Retrying command after error recovery: {cmd.Control} {cmd.Value}");
                         
                         if (cmd.Control == "CDU_PG" && (cmd.Value == 0 || cmd.Value == 2))
                         {
@@ -252,7 +252,7 @@ public class CduButtonSequence
                         // Check again after retry
                         if (await CheckAndRecoverFromErrorAsync(cancellationToken))
                         {
-                            System.Diagnostics.Debug.WriteLine($"CduButtonSequence: Error persists after retry for: {cmd.Control} {cmd.Value}");
+                            Console.WriteLine($"CduButtonSequence: Error persists after retry for: {cmd.Control} {cmd.Value}");
                             // Continue anyway - might be a transient issue
                         }
                     }
@@ -266,7 +266,7 @@ public class CduButtonSequence
             // Ensure any pressed button is released on cancellation
             if (!string.IsNullOrEmpty(currentlyPressedButton))
             {
-                System.Diagnostics.Debug.WriteLine($"CduButtonSequence: Cancellation detected, releasing pressed button: {currentlyPressedButton}");
+                Console.WriteLine($"CduButtonSequence: Cancellation detected, releasing pressed button: {currentlyPressedButton}");
                 
                 try
                 {
@@ -283,7 +283,7 @@ public class CduButtonSequence
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"CduButtonSequence: Error releasing button on cancellation: {ex.Message}");
+                    Console.WriteLine($"CduButtonSequence: Error releasing button on cancellation: {ex.Message}");
                 }
             }
             
@@ -312,13 +312,13 @@ public class CduButtonSequence
             return false; // No error detected
         }
 
-        System.Diagnostics.Debug.WriteLine("CduButtonSequence: CDU error detected, attempting recovery...");
+        Console.WriteLine("CduButtonSequence: CDU error detected, attempting recovery...");
         
         // Clear the error
         var cleared = await _biosService.ClearCduErrorAsync();
         if (!cleared)
         {
-            System.Diagnostics.Debug.WriteLine("CduButtonSequence: Failed to clear CDU error");
+            Console.WriteLine("CduButtonSequence: Failed to clear CDU error");
             return true; // Error was detected but couldn't clear it
         }
 
@@ -328,11 +328,11 @@ public class CduButtonSequence
         // Check if error is still present
         if (_biosService.HasCduError())
         {
-            System.Diagnostics.Debug.WriteLine("CduButtonSequence: CDU error still present after CLR");
+            Console.WriteLine("CduButtonSequence: CDU error still present after CLR");
             return true; // Error persists
         }
 
-        System.Diagnostics.Debug.WriteLine("CduButtonSequence: CDU error cleared successfully");
+        Console.WriteLine("CduButtonSequence: CDU error cleared successfully");
         return true; // Error was detected and cleared
     }
 
@@ -415,7 +415,7 @@ public class CduButtonSequence
     {
         if (windLine == null)
         {
-            System.Diagnostics.Debug.WriteLine($"CduButtonSequence: No wind data for {description}, skipping");
+            Console.WriteLine($"CduButtonSequence: No wind data for {description}, skipping");
             return;
         }
 
@@ -450,7 +450,7 @@ public class CduButtonSequence
     {
         if (windLine == null)
         {
-            System.Diagnostics.Debug.WriteLine($"CduButtonSequence: No temperature data for {description}, skipping");
+            Console.WriteLine($"CduButtonSequence: No temperature data for {description}, skipping");
             return;
         }
 
