@@ -4,6 +4,8 @@ An [Avalonia](https://github.com/AvaloniaUI/Avalonia)-based application that rep
 
    ![LASTE-Mate Screenshot](docs/screenshots/Screenshot.png)
 
+   <video src="docs/demo/LASTE-Mate-Demo.mp4" controls width="100%"></video>
+
 ## Features
 
 - **Automatic DCS Integration**: Reads wind data directly from DCS via Lua export script via TCP socket
