@@ -100,7 +100,7 @@ TCP Socket mode is the default and recommended connection method. It automatical
 
 ### File-based Mode (Alternative)
 
-File-based mode is an alternative connection method if TCP socket cannot be created if TCP isn’t possible.
+File-based mode is an alternative connection method if TCP socket isn’t possible.
 
 1. **Set up the DCS export script**:
    - Copy `Scripts/dcs_wind_export.lua` to your DCS `Scripts/Hooks/` folder
