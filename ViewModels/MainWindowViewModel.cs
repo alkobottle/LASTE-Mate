@@ -1,31 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LASTE_Mate.Core;
 using LASTE_Mate.Models;
 using LASTE_Mate.Services;
+using NLog;
 
 namespace LASTE_Mate.ViewModels;
 
-public enum ConnectionMode
-{
-    FileBased,
-    TcpSocket
-}
-
 public partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
-    private readonly DcsDataService _dcsDataService;
     private readonly DcsSocketService _dcsSocketService;
     private readonly DcsBiosService _dcsBiosService;
     private readonly CduButtonSequence _cduButtonSequence;
@@ -34,6 +26,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _initializing = true;
     private bool _batchUpdating;
     private bool _disposed;
+    private bool _isApplyingConnectionState; // Guard to prevent concurrent ApplyConnectionState calls
 
     [ObservableProperty] private ObservableCollection<string> _availableMaps;
     [ObservableProperty] private string _selectedMap = "Caucasus";
@@ -48,8 +41,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty] private double? _wind8000mSpeed = 0;
     [ObservableProperty] private double? _wind8000mDirection = 0;
-
-    [ObservableProperty] private string _exportFilePath = string.Empty;
 
     [ObservableProperty] private bool _isDcsConnected;
 
@@ -66,12 +57,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty] private bool _isMapMatched = true;
 
-    [ObservableProperty] private ConnectionMode _connectionMode = ConnectionMode.TcpSocket;
-
     [ObservableProperty] private bool _isTcpConnected;
     [ObservableProperty] private int _tcpPort = 10309;
 
     [ObservableProperty] private bool _isTcpServerRunning;
+    [ObservableProperty] private bool _tcpListenerEnabled;
+    
+    [ObservableProperty] private int _dcsBiosPort = 7778;
 
     [ObservableProperty] private string? _listenerError;
 
@@ -88,32 +80,41 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private string _appVersion = VersionHelper.GetVersion();
 
     private CancellationTokenSource? _cduSendCancellationTokenSource;
+    private System.Threading.Timer? _connectionStatusTimer;
+    private static readonly ILogger Logger = LoggingService.GetLogger<MainWindowViewModel>();
 
-    public MainWindowViewModel()
+    public MainWindowViewModel(
+        DcsSocketService dcsSocketService,
+        DcsBiosService dcsBiosService,
+        AppConfigService configService)
     {
-        _dcsDataService = new DcsDataService();
-        _dcsSocketService = new DcsSocketService();
-        _dcsBiosService = new DcsBiosService();
+        _dcsSocketService = dcsSocketService;
+        _dcsBiosService = dcsBiosService;
+        _configService = configService;
         _cduButtonSequence = new CduButtonSequence(_dcsBiosService);
-        _configService = new AppConfigService();
 
         _availableMaps = new ObservableCollection<string>(WindRecalculator.GetAvailableMaps());
-
-        // Subscribe first (no side effects in handlers)
-        _dcsDataService.DataUpdated += OnDcsDataUpdated;
-        _dcsDataService.ConnectionStatusChanged += OnFileConnectionStatusChanged;
 
         _dcsSocketService.DataReceived += OnDcsDataUpdated;
         _dcsSocketService.ConnectionStatusChanged += OnTcpConnectionStatusChanged;
         _dcsSocketService.ListenerError += OnListenerError;
+        _dcsSocketService.ListeningStatusChanged += OnListeningStatusChanged;
 
-        // Load config without triggering side effects
         LoadConfig();
+        ApplyConnectionState();
 
-        // Apply initial mode exactly once
-        ApplyConnectionMode();
+        var actualIsListening = _dcsSocketService.IsListening;
+        if (IsTcpServerRunning != actualIsListening)
+        {
+            Logger.Debug("Initial sync IsTcpServerRunning: {Old} -> {New}", IsTcpServerRunning, actualIsListening);
+            IsTcpServerRunning = actualIsListening;
+        }
+
+        _connectionStatusTimer = new System.Threading.Timer(OnConnectionStatusTimerTick, null, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
 
         _initializing = false;
+        
+        Logger.Info("Instance created, DcsSocketService singleton instance: {HashCode:X8}", _dcsSocketService.GetHashCode());
     }
 
     public bool CanSendToCdu => Results.Count > 0;
@@ -125,15 +126,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _batchUpdating = true;
         try
         {
-            ExportFilePath = config.ExportFilePath ?? DcsDataService.GetDefaultExportPath();
             TcpPort = config.TcpPort <= 0 ? 10309 : config.TcpPort;
             AutoUpdate = config.AutoUpdate;
-
-            // Set ConnectionMode (OnConnectionModeChanged is guarded by _initializing)
-            if (Enum.TryParse<ConnectionMode>(config.ConnectionMode, out var mode))
-                ConnectionMode = mode;
-            else
-                ConnectionMode = ConnectionMode.TcpSocket;
+            TcpListenerEnabled = config.TcpListenerEnabled;
+            DcsBiosPort = config.DcsBiosPort <= 0 ? 7778 : config.DcsBiosPort;
         }
         finally
         {
@@ -145,51 +141,66 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         var config = new AppConfig
         {
-            ConnectionMode = ConnectionMode.ToString(),
             TcpPort = TcpPort,
-            ExportFilePath = ExportFilePath,
-            AutoUpdate = AutoUpdate
+            AutoUpdate = AutoUpdate,
+            TcpListenerEnabled = TcpListenerEnabled,
+            DcsBiosPort = DcsBiosPort
         };
 
         _configService.SaveConfig(config);
     }
 
-    private void ApplyConnectionMode()
+    private void ApplyConnectionState()
     {
-        ListenerError = null;
-
-        if (ConnectionMode == ConnectionMode.FileBased)
+        if (_isApplyingConnectionState)
         {
-            StopTcpServerInternal();
-
-            _dcsDataService.ExportFilePath = ExportFilePath;
-            _dcsDataService.StartWatching();
-
-            UpdateOverallConnectionFlags();
-            RaiseCanSendToCdu();
+            Logger.Debug("ApplyConnectionState: Already applying, skipping duplicate call");
             return;
         }
 
-        // TcpSocket
-        _dcsDataService.StopWatching();
-        StopTcpServerInternal(); // Always start stopped, user must click "Start TCP Server"
+        _isApplyingConnectionState = true;
+        try
+        {
+            Logger.Debug("ApplyConnectionState: TcpListenerEnabled={TcpListenerEnabled}, TcpPort={TcpPort}", TcpListenerEnabled, TcpPort);
+            
+            ListenerError = null;
 
-        UpdateOverallConnectionFlags();
-        RaiseCanSendToCdu();
+            if (TcpListenerEnabled)
+            {
+                Logger.Info("Starting TCP listener on port {TcpPort} in background thread", TcpPort);
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _dcsSocketService.StartListeningAsync(TcpPort);
+                        Logger.Debug("TCP listener start task completed");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex, "Failed to start TCP listener");
+                    }
+                });
+            }
+            else
+            {
+                Logger.Info("TcpListenerEnabled=false, stopping TCP listener");
+                _dcsSocketService.StopListening();
+                IsTcpServerRunning = false;
+            }
+
+            UpdateOverallConnectionFlags();
+            RaiseCanSendToCdu();
+        }
+        finally
+        {
+            _isApplyingConnectionState = false;
+        }
     }
 
     private void UpdateOverallConnectionFlags()
     {
-        if (ConnectionMode == ConnectionMode.FileBased)
-        {
-            IsDcsConnected = _dcsDataService.IsConnected;
-            IsTcpConnected = false;
-        }
-        else
-        {
-            IsTcpConnected = _dcsSocketService.IsConnected;
-            IsDcsConnected = IsTcpConnected;
-        }
+        IsTcpConnected = _dcsSocketService.IsConnected;
+        IsDcsConnected = IsTcpConnected;
     }
 
     private void RaiseCanSendToCdu()
@@ -197,20 +208,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CanSendToCdu));
     }
 
-    private void OnFileConnectionStatusChanged(object? sender, bool connected)
-    {
-        if (ConnectionMode != ConnectionMode.FileBased) return;
-
-        Dispatcher.UIThread.Post(() =>
-        {
-            IsDcsConnected = connected;
-        });
-    }
-
     private void OnTcpConnectionStatusChanged(object? sender, bool connected)
     {
-        if (ConnectionMode != ConnectionMode.TcpSocket) return;
-
+        // Marshal to UI thread
         Dispatcher.UIThread.Post(() =>
         {
             IsTcpConnected = connected;
@@ -219,11 +219,53 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         });
     }
 
+    /// <summary>
+    /// Timer callback to check for stale connection status and update UI accordingly.
+    /// </summary>
+    private void OnConnectionStatusTimerTick(object? state)
+    {
+        if (_disposed) return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_disposed) return;
+
+            // Sync TCP server running state with actual service state
+            var actualIsListening = _dcsSocketService.IsListening;
+            if (IsTcpServerRunning != actualIsListening)
+            {
+                Logger.Debug("Syncing IsTcpServerRunning: {Old} -> {New}", IsTcpServerRunning, actualIsListening);
+                IsTcpServerRunning = actualIsListening;
+            }
+
+            // Recompute connection status based on current state
+            var wasConnected = IsDcsConnected;
+            var nowConnected = _dcsSocketService.IsConnected;
+            
+            if (wasConnected != nowConnected)
+            {
+                IsTcpConnected = nowConnected;
+                IsDcsConnected = nowConnected;
+                RaiseCanSendToCdu();
+            }
+        });
+    }
+
     private void OnListenerError(string errorMessage)
     {
         Dispatcher.UIThread.Post(() =>
         {
             ListenerError = errorMessage;
+        });
+    }
+
+    private void OnListeningStatusChanged(bool isListening)
+    {
+        // Marshal to UI thread and update the UI property
+        Dispatcher.UIThread.Post(() =>
+        {
+            Logger.Debug("OnListeningStatusChanged: isListening={IsListening}, updating IsTcpServerRunning", isListening);
+            IsTcpServerRunning = isListening;
         });
     }
 
@@ -387,7 +429,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             // Keep UI stable; optionally surface to a status field later
-            System.Diagnostics.Debug.WriteLine($"Calculation error: {ex.Message}");
+            Logger.Error(ex, "Calculation error");
         }
     }
 
@@ -420,72 +462,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             _batchUpdating = false;
         }
-
-        MaybeAutoCalculate();
     }
 
-    [RelayCommand]
-    private async Task BrowseExportPath()
-    {
-        try
-        {
-            var mainWindow = GetMainWindow();
-            if (mainWindow == null) return;
-
-            var files = await mainWindow.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Select DCS Wind Data JSON File",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("JSON Files") { Patterns = new[] { "*.json" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                },
-                SuggestedStartLocation = await GetSuggestedStartLocation(mainWindow)
-            });
-
-            if (files.Count == 0) return;
-            if (files[0] is not IStorageFile file) return;
-
-            var path = file.Path?.LocalPath;
-            if (string.IsNullOrWhiteSpace(path)) return;
-
-            ExportFilePath = path; // triggers SaveConfig via partial
-            _dcsDataService.ExportFilePath = ExportFilePath;
-
-            if (ConnectionMode == ConnectionMode.FileBased)
-            {
-                _dcsDataService.StartWatching();
-
-                if (File.Exists(ExportFilePath))
-                {
-                    // optional: read once immediately
-                    await _dcsDataService.ReadAndNotifyAsync();
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"BrowseExportPath error: {ex.Message}");
-        }
-    }
-
-    private static async Task<IStorageFolder?> GetSuggestedStartLocation(Avalonia.Controls.Window mainWindow)
-    {
-        try
-        {
-            var defaultPath = DcsDataService.GetDefaultExportPath();
-            var dir = Path.GetDirectoryName(defaultPath);
-            if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
-                return await mainWindow.StorageProvider.TryGetFolderFromPathAsync(dir);
-        }
-        catch
-        {
-            // ignore
-        }
-
-        return null;
-    }
 
     [RelayCommand]
     private async Task SendToCdu()
@@ -511,7 +489,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         try
         {
-            System.Diagnostics.Debug.WriteLine("SendToCdu: Starting CDU button sequence");
+            Logger.Info("SendToCdu: Starting CDU button sequence");
 
             // Generate the complete sequence (page & height setup + wind data + temperature)
             var windLines = Results.ToArray();
@@ -526,26 +504,26 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 CduSendProgress = "Completed successfully";
                 AddDebugLog("Sequence completed successfully");
-                System.Diagnostics.Debug.WriteLine("SendToCdu: Successfully executed CDU button sequence");
+                Logger.Info("SendToCdu: Successfully executed CDU button sequence");
             }
             else
             {
                 CduSendProgress = "Failed";
                 AddDebugLog("Sequence execution failed");
-                System.Diagnostics.Debug.WriteLine("SendToCdu: Failed to execute CDU button sequence");
+                Logger.Warn("SendToCdu: Failed to execute CDU button sequence");
             }
         }
         catch (OperationCanceledException)
         {
             CduSendProgress = "Cancelled";
             AddDebugLog("Sequence cancelled by user");
-            System.Diagnostics.Debug.WriteLine("SendToCdu: Cancelled by user");
+            Logger.Info("SendToCdu: Cancelled by user");
         }
         catch (Exception ex)
         {
             CduSendProgress = $"Error: {ex.Message}";
             AddDebugLog($"Error: {ex.Message}");
-            System.Diagnostics.Debug.WriteLine($"SendToCdu error: {ex.Message}");
+            Logger.Error(ex, "SendToCdu error");
         }
         finally
         {
@@ -582,148 +560,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private void SetConnectionMode(string modeString)
-    {
-        if (!Enum.TryParse<ConnectionMode>(modeString, out var mode))
-            return;
-
-        ConnectionMode = mode;
-    }
-
-    [RelayCommand]
-    private void StartTcpServer()
-    {
-        if (ConnectionMode != ConnectionMode.TcpSocket) return;
-
-        StartTcpServerInternal();
-        SaveConfig();
-    }
-
-    [RelayCommand]
-    private void StopTcpServer()
-    {
-        StopTcpServerInternal();
-        SaveConfig();
-    }
-
-    [RelayCommand]
     private void ToggleTcpServer()
     {
-        if (IsTcpServerRunning)
-        {
-            StopTcpServer();
-        }
-        else
-        {
-            StartTcpServer();
-        }
-    }
-
-    private void StartTcpServerInternal()
-    {
-        if (IsTcpServerRunning)
-        {
-            System.Diagnostics.Debug.WriteLine($"StartTcpServerInternal: Already running, IsListening={_dcsSocketService.IsListening}");
-            return;
-        }
-
-        System.Diagnostics.Debug.WriteLine($"StartTcpServerInternal: Starting server on port {TcpPort}, IsListening before={_dcsSocketService.IsListening}");
-
-        try
-        {
-            ListenerError = null;
-
-            _dcsSocketService.StartListening(TcpPort);
-            
-            // Verify the server actually started before updating UI state
-            var isListening = _dcsSocketService.IsListening;
-            System.Diagnostics.Debug.WriteLine($"StartTcpServerInternal: After StartListening, IsListening={isListening}");
-            
-            if (isListening)
-            {
-                IsTcpServerRunning = true;
-                UpdateOverallConnectionFlags();
-                RaiseCanSendToCdu();
-                System.Diagnostics.Debug.WriteLine($"StartTcpServerInternal: Successfully started, IsTcpServerRunning={IsTcpServerRunning}");
-            }
-            else
-            {
-                // Server didn't start even though StartListening didn't throw
-                IsTcpServerRunning = false;
-                UpdateOverallConnectionFlags();
-                RaiseCanSendToCdu();
-                System.Diagnostics.Debug.WriteLine("StartTcpServerInternal: StartListening returned but server is not listening");
-            }
-        }
-        catch (Exception ex)
-        {
-            // Check if server actually started despite the exception
-            var isListeningAfterException = _dcsSocketService.IsListening;
-            System.Diagnostics.Debug.WriteLine($"StartTcpServerInternal: Exception caught: {ex.GetType().Name}: {ex.Message}, IsListening after exception={isListeningAfterException}");
-            
-            if (isListeningAfterException)
-            {
-                // Server started but exception was thrown - sync UI state
-                System.Diagnostics.Debug.WriteLine("StartTcpServerInternal: Server is listening despite exception, syncing UI state");
-                IsTcpServerRunning = true;
-                UpdateOverallConnectionFlags();
-                RaiseCanSendToCdu();
-            }
-            else
-            {
-                IsTcpServerRunning = false;
-                UpdateOverallConnectionFlags();
-                RaiseCanSendToCdu();
-            }
-
-            // ListenerError is raised by the service; keep ex for debug only
-            System.Diagnostics.Debug.WriteLine($"StartTcpServerInternal exception details: {ex}");
-        }
-    }
-
-    private void StopTcpServerInternal()
-    {
-        try
-        {
-            _dcsSocketService.StopListening();
-        }
-        catch
-        {
-            // ignore on shutdown
-        }
-        finally
-        {
-            IsTcpServerRunning = false;
-            UpdateOverallConnectionFlags();
-            RaiseCanSendToCdu();
-        }
-    }
-
-    private static Avalonia.Controls.Window? GetMainWindow()
-    {
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
-            return null;
-
-        return desktop.MainWindow;
+        TcpListenerEnabled = !TcpListenerEnabled;
+        ApplyConnectionState();
+        SaveConfig();
     }
 
     // ----------------------------
     // Property change hooks
     // ----------------------------
-
-    partial void OnExportFilePathChanged(string value)
-    {
-        if (_initializing) return;
-
-        if (ConnectionMode == ConnectionMode.FileBased)
-        {
-            _dcsDataService.ExportFilePath = value;
-            _dcsDataService.StartWatching();
-            UpdateOverallConnectionFlags();
-        }
-
-        SaveConfig();
-    }
 
     partial void OnAutoUpdateChanged(bool value)
     {
@@ -735,21 +581,25 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         if (_initializing) return;
 
-        if (ConnectionMode == ConnectionMode.TcpSocket && IsTcpServerRunning)
+        if (TcpListenerEnabled)
         {
-            // restart on new port
-            StopTcpServerInternal();
-            StartTcpServerInternal();
+            // Restart listener on new port
+            ApplyConnectionState();
         }
 
         SaveConfig();
     }
 
-    partial void OnConnectionModeChanged(ConnectionMode value)
+    partial void OnDcsBiosPortChanged(int value)
     {
         if (_initializing) return;
+        SaveConfig();
+    }
 
-        ApplyConnectionMode();
+    partial void OnTcpListenerEnabledChanged(bool value)
+    {
+        if (_initializing) return;
+        ApplyConnectionState();
         SaveConfig();
     }
 
@@ -767,22 +617,39 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (_disposed) return;
         _disposed = true;
 
+        Logger.Debug("Disposing...");
+
         try
         {
-            _dcsDataService.DataUpdated -= OnDcsDataUpdated;
-            _dcsDataService.ConnectionStatusChanged -= OnFileConnectionStatusChanged;
+            // Stop timer
+            _connectionStatusTimer?.Dispose();
+            _connectionStatusTimer = null;
 
+            // Unsubscribe from events
             _dcsSocketService.DataReceived -= OnDcsDataUpdated;
             _dcsSocketService.ConnectionStatusChanged -= OnTcpConnectionStatusChanged;
             _dcsSocketService.ListenerError -= OnListenerError;
+            _dcsSocketService.ListeningStatusChanged -= OnListeningStatusChanged;
 
-            _dcsDataService.Dispose();
+            // Stop TCP listener
+            if (TcpListenerEnabled)
+            {
+                _dcsSocketService.StopListening();
+            }
+
+            // Cancel CDU send operation if running
+            _cduSendCancellationTokenSource?.Cancel();
+            _cduSendCancellationTokenSource?.Dispose();
+
+            // Dispose services
             _dcsSocketService.Dispose();
             _dcsBiosService.Dispose();
+
+            Logger.Debug("Disposed successfully");
         }
-        catch
+        catch (Exception ex)
         {
-            // ignore during shutdown
+            Logger.Error(ex, "Error during disposal");
         }
     }
 }

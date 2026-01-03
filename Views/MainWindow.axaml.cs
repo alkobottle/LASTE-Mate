@@ -9,11 +9,14 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using LASTE_Mate.ViewModels;
+using LASTE_Mate.Services;
+using NLog;
 
 namespace LASTE_Mate.Views;
 
 public partial class MainWindow : Window
 {
+    private static readonly ILogger Logger = LoggingService.GetLogger<MainWindow>();
     private ScrollViewer? _debugLogScrollViewer;
 
     public MainWindow()
@@ -95,42 +98,22 @@ public partial class MainWindow : Window
         // Prevent multiple disposal calls
         if (_isClosing)
         {
-            System.Diagnostics.Debug.WriteLine("MainWindow: Already closing, skipping");
             return;
         }
         
         _isClosing = true;
-        System.Diagnostics.Debug.WriteLine("MainWindow: Closing event fired");
+        Logger.Debug("Closing event fired");
         
-        // Dispose resources first
+        // Dispose resources - this will stop TCP listener and clean up
         if (DataContext is IDisposable disposable)
         {
-            System.Diagnostics.Debug.WriteLine("MainWindow: Disposing DataContext");
             try
             {
                 disposable.Dispose();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"MainWindow: Error disposing DataContext: {ex.Message}");
-            }
-            System.Diagnostics.Debug.WriteLine("MainWindow: DataContext disposed");
-        }
-
-        // Give a moment for cleanup (especially for TCP server to release port)
-        System.Threading.Thread.Sleep(200);
-
-        // Ensure app process terminates (prevents zombie listener)
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            System.Diagnostics.Debug.WriteLine("MainWindow: Shutting down application");
-            try
-            {
-                desktop.Shutdown();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"MainWindow: Error shutting down: {ex.Message}");
+                Logger.Error(ex, "Error disposing DataContext");
             }
         }
     }

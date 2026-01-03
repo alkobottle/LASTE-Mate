@@ -16,7 +16,6 @@
         <converters:BoolToStatusConverter x:Key="BoolToStatusConverter"/>
         <converters:BoolToBorderBrushConverter x:Key="BoolToBorderBrushConverter"/>
         <converters:BoolInvertConverter x:Key="BoolInvertConverter"/>
-        <converters:EnumToBoolConverter x:Key="EnumToBoolConverter"/>
         <converters:BoolToContentConverter x:Key="BoolToContentConverter"/>
     </Application.Resources>
   

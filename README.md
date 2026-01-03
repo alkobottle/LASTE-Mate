@@ -6,10 +6,7 @@ An [Avalonia](https://github.com/AvaloniaUI/Avalonia)-based application that rep
 
 ## Features
 
-- **Automatic DCS Integration**: Reads wind data directly from DCS via Lua export script
-- **Connection Modes**: 
-  - **TCP Socket** (Default): Automatic data reception from DCS
-  - **File-based** (Alternative): Reads from JSON export file
+- **Automatic DCS Integration**: Reads wind data directly from DCS via Lua export script via TCP socket
 - **Automatic CDU Data Entry**: Sends button sequences to [DCS-BIOS](https://github.com/dcs-bios/dcs-bios) to automatically enter wind data into the CDU
 - **Manual Input Mode**: Enter wind data manually if DCS export is unavailable
 - **Automatic Updates**: Automatically updates calculations when DCS wind data changes
@@ -30,7 +27,6 @@ An [Avalonia](https://github.com/AvaloniaUI/Avalonia)-based application that rep
 
 ## Roadmap
 
-- **TCP Server Auto-start**: The TCP server does not automatically start when the application launches
 - **TCP Server Process Cleanup**: Sometimes the TCP server process can get stuck and remain running after the application is closed
 - **CDU Input Error Detection**: The CDU input error detection currently does not trigger for all instances where errors occur
 - **UI Polish Needed**: 
@@ -51,7 +47,7 @@ graph TB
     LASTE["LASTE-Mate<br/>(C# Application)"]
 
     %% Data Flow
-    LuaScript -->|"Briefing Weather Data<br/>(TCP/File)"| LASTE
+    LuaScript -->|"Briefing Weather Data<br/>(TCP)"| LASTE
     LASTE -->|"CDU Commands<br/>(UDP)"| DcsBios
     DcsBios -->|"CDU Status<br/>(UDP)"| LASTE
 ```
@@ -65,22 +61,17 @@ graph TB
 
 ## Usage
 
-### TCP Socket Mode (Default)
-
-TCP Socket mode is the default and recommended connection method. It automatically receives weather data from DCS and enables automatic CDU data entry via [DCS-BIOS](https://github.com/dcs-bios/dcs-bios).
-
 1. **Set up the DCS export script**:
    - Copy `Scripts/dcs_wind_export.lua` to your DCS `Scripts/Hooks/` folder
-   - Configure the script for TCP mode (see [Scripts/README.md](Scripts/README.md))
+   - Configure the script TCP settings (see [Scripts/README.md](Scripts/README.md))
 
 2. **Install DCS-BIOS**:
    - Install DCS-BIOS following the official [DCS-BIOS](https://github.com/dcs-bios/dcs-bios) documentation
    - Ensure [DCS-BIOS](https://github.com/dcs-bios/dcs-bios) is running and configured
 
 3. **Configure the application**:
-   - Select "TCP Socket" connection mode
    - Configure the TCP port (default: 10309) to match the Lua script
-   - Click "Start TCP Server" to begin listening for DCS connections
+   - The TCP server will automatically start when the application launches
    - Wait for the connection status to show "Connected" (which should happen after a mission is loaded in DCS)
 
 4. **Start DCS and load a mission**:
@@ -89,6 +80,15 @@ TCP Socket mode is the default and recommended connection method. It automatical
    - Make sure correct map was identified by LASTE-Mate, as the magnetic variations differ and influence the result.
 
 5. **Send data to CDU**:
+   
+   **Important Prerequisites**: Before sending data to the CDU, ensure:
+   - The player is seated in the aircraft (not in the briefing screen)
+   - The mission briefing has been confirmed with the "Fly" button
+   - The aircraft is powered up (electrical systems on)
+   
+   Without these prerequisites, the CDU automation will not work correctly.
+   
+   Once ready:
    - Click "Send Data to CDU" button
    - The app will automatically:
      - Navigate to the LASTE / WIND menu in the CDU
@@ -97,28 +97,6 @@ TCP Socket mode is the default and recommended connection method. It automatical
      - Enter all temperature data
    - Monitor progress in the progress indicator and debug log
    - Use "Cancel" button to abort if needed
-
-### File-based Mode (Alternative)
-
-File-based mode is an alternative connection method if TCP socket isn’t possible.
-
-1. **Set up the DCS export script**:
-   - Copy `Scripts/dcs_wind_export.lua` to your DCS `Scripts/Hooks/` folder
-   - Configure the script for file mode (see [Scripts/README.md](Scripts/README.md))
-   - See [Scripts/README.md](Scripts/README.md) for detailed instructions
-
-2. **Configure the application**:
-   - Select "File-based (Read-only)" connection mode
-   - The app will auto-detect the default DCS export path
-   - If needed, manually enter the path to `wind_data.json` in the DCS Connection section
-   - Enable "Auto-update from DCS" checkbox
-
-3. **Start DCS and load a mission**:
-   - The application will automatically read wind data from DCS
-   - Calculations update automatically as new data is received (mission load/slot change)
-   - Verify the detected map is correct, as the magnetic variations differ per map and influence the result.
-
-4. **View the results** in the CDU Wind Lines table
 
 ### Manual Mode
 
@@ -179,8 +157,8 @@ See [Scripts/README.md](Scripts/README.md) for detailed instructions on installi
 1. Navigate to: `%USERPROFILE%\Saved Games\DCS\Scripts\Hooks\` (or `DCS.openbeta\` for beta)
 2. Create the `Hooks` folder if it doesn't exist
 3. Copy `dcs_wind_export.lua` to this folder
-4. Edit the script to configure communication mode (file or TCP)
-5. The script will automatically create `wind_data.json` (file mode) or connect via TCP (TCP mode)
+4. Edit the script to configure TCP settings (host and port)
+5. The script will automatically connect via TCP when a mission loads
 
 ## Multiplayer Support
 
@@ -190,23 +168,15 @@ Attention, the export script works in multiplayer, but has only been tested on a
 
 ### DCS Connection Not Working
 
-- **TCP Mode**:
-  - Verify the TCP port matches in both the script config and LASTE-Mate
-  - Make sure LASTE-Mate's TCP server is started
-  - Check Windows Firewall isn't blocking the connection
-  - Ensure LuaSocket is enabled in DCS (see [Scripts/README.md](Scripts/README.md))
-  - Enable `debug_mode = true` in the script config to see detailed logs
-
-- **File Mode**:
-  - Check the export file path: Ensure it points to the correct `wind_data.json` file
-  - Verify the Lua script is installed: Check that `dcs_wind_export.lua` is in the `Scripts/Hooks/` folder
-  - Check DCS is running: The script only exports when DCS is running with a mission loaded
-  - Check file permissions: Ensure the application can read the export file
-
-### Export File Not Updating
-
-- **Verify script is running**: Check DCS log files for Lua errors
-- **Check file path**: Ensure the script is writing to the expected location
+- Verify the TCP port matches in both the script config and LASTE-Mate
+- The TCP server should start automatically; check the "TCP Server" status indicator in the DCS Connection panel
+- If the server isn't running, use the Settings button to toggle it on
+- Check Windows Firewall isn't blocking the connection
+- Ensure LuaSocket is enabled in DCS (see [Scripts/README.md](Scripts/README.md))
+- Enable `debug_mode = true` in the script config to see detailed logs
+- Verify the Lua script is installed: Check that `dcs_wind_export.lua` is in the `Scripts/Hooks/` folder
+- Check DCS is running: The script only exports when DCS is running with a mission loaded
+- Verify script is running: Check DCS log files for Lua errors
 - **Restart DCS**: Sometimes the script needs a DCS restart to load
 
 ### CDU Automation Not Working

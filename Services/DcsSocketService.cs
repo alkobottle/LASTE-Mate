@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using SimpleTcp;
 using LASTE_Mate.Models;
+using NLog;
 
 namespace LASTE_Mate.Services;
 
@@ -16,6 +17,8 @@ public sealed class DcsSocketService : IDisposable
     private static readonly IPAddress BindAddress = IPAddress.Parse("127.0.0.1");
 
     private readonly object _sync = new();
+    private readonly int _instanceId;
+    private static readonly ILogger Logger = LoggingService.GetLogger<DcsSocketService>();
 
     private SimpleTcpServer? _server;
     private readonly Dictionary<string, StringBuilder> _rxBuffersByClient = new();
@@ -27,11 +30,17 @@ public sealed class DcsSocketService : IDisposable
 
     private bool _lastReportedConnected;
 
+    public DcsSocketService()
+    {
+        _instanceId = GetHashCode();
+        Logger.Info("Singleton instance created: Id={InstanceId:X8}, HashCode={HashCode:X8}", _instanceId, GetHashCode());
+    }
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
-        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never // Always include properties, even if null/empty
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never
     };
 
     public int Port { get; private set; } = DefaultPort;
@@ -84,66 +93,92 @@ public sealed class DcsSocketService : IDisposable
     public event EventHandler<DcsExportData>? DataReceived;
     public event EventHandler<bool>? ConnectionStatusChanged;
     public event Action<string>? ListenerError;
+    public event Action<bool>? ListeningStatusChanged;
 
     /// <summary>
-    /// Starts the TCP server. Idempotent:
+    /// Starts the TCP server asynchronously. Idempotent and thread-safe:
     /// - If already listening on the same port: does nothing.
-    /// - If listening on another port: restarts on the requested port.
+    /// - If listening on different port: stops then starts on requested port (atomic).
+    /// This method should be called from a background thread (e.g., Task.Run) to avoid blocking the UI.
     /// </summary>
-    public void StartListening(int port = DefaultPort)
+    public async Task StartListeningAsync(int port = DefaultPort)
     {
         ThrowIfDisposed();
 
-        lock (_sync)
+        await Task.Run(() =>
         {
-            // Already listening on the requested port -> no-op
-            if (_server is not null && _server.IsListening && Port == port)
+            lock (_sync)
             {
-                RaiseConnectionStatusIfChanged_NoLock();
-                return;
-            }
-
-            // If a server exists (listening or not), stop it first
-            StopListening_NoLock();
-
-            Port = port;
-
-            var endpoint = $"{BindAddress}:{port}";
-            try
-            {
-                var server = new SimpleTcpServer(endpoint);
-
-                server.Events.ClientConnected += OnClientConnected;
-                server.Events.ClientDisconnected += OnClientDisconnected;
-                server.Events.DataReceived += OnDataReceived;
-
-                server.Start();
-
-                if (!server.IsListening)
+                if (_server is not null && _server.IsListening && Port == port)
                 {
-                    server.Dispose();
-                    throw new InvalidOperationException("Server.Start() returned but server is not listening.");
+                    Logger.Debug("Already listening on port {Port}, no-op", port);
+                    RaiseConnectionStatusIfChanged_NoLock();
+                    RaiseListeningStatusChanged_NoLock();
+                    return;
                 }
 
-                _server = server;
+                Logger.Info("Starting listener on port {Port}", port);
 
-                // Reset state
-                _rxBuffersByClient.Clear();
-                _lastDataReceivedUtc = DateTime.MinValue;
+                StopListening_NoLock();
 
-                RaiseConnectionStatusIfChanged_NoLock(); // will be false until client/data arrives
+                Port = port;
+
+                var endpoint = $"{BindAddress}:{port}";
+                try
+                {
+                    var server = new SimpleTcpServer(endpoint);
+
+                    server.Events.ClientConnected += OnClientConnected;
+                    server.Events.ClientDisconnected += OnClientDisconnected;
+                    server.Events.DataReceived += OnDataReceived;
+
+                    server.Start();
+
+                    if (!server.IsListening)
+                    {
+                        server.Dispose();
+                        throw new InvalidOperationException("Server.Start() returned but server is not listening.");
+                    }
+
+                    _server = server;
+
+                    _rxBuffersByClient.Clear();
+                    _lastDataReceivedUtc = DateTime.MinValue;
+
+                    Logger.Info("Successfully started listening on {Endpoint}", endpoint);
+                    RaiseConnectionStatusIfChanged_NoLock();
+                    RaiseListeningStatusChanged_NoLock();
+                }
+                catch (Exception ex)
+                {
+                    _server = null;
+                    _rxBuffersByClient.Clear();
+                    _lastDataReceivedUtc = DateTime.MinValue;
+
+                    var errorMsg = $"Failed to bind {endpoint}: {ex.Message}";
+                    Logger.Error(ex, "Failed to bind {Endpoint}", endpoint);
+                    ListenerError?.Invoke(errorMsg);
+                    RaiseConnectionStatusIfChanged_NoLock();
+                    RaiseListeningStatusChanged_NoLock();
+                    throw;
+                }
+            }
+        });
+    }
+
+    public void StartListening(int port = DefaultPort)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await StartListeningAsync(port);
             }
             catch (Exception ex)
             {
-                _server = null;
-                _rxBuffersByClient.Clear();
-                _lastDataReceivedUtc = DateTime.MinValue;
-
-                ListenerError?.Invoke($"Failed to bind {endpoint}: {ex.Message}");
-                RaiseConnectionStatusIfChanged_NoLock();
-                throw;
+                Logger.Error(ex, "StartListening background task failed");
             }
-        }
+        });
     }
 
     /// <summary>
@@ -155,8 +190,17 @@ public sealed class DcsSocketService : IDisposable
 
         lock (_sync)
         {
+            if (_server is null || !_server.IsListening)
+            {
+                Logger.Debug("StopListening called but not listening, no-op");
+                return;
+            }
+
+            Logger.Info("Stopping listener on port {Port}", Port);
             StopListening_NoLock();
             RaiseConnectionStatusIfChanged_NoLock();
+            RaiseListeningStatusChanged_NoLock();
+            Logger.Info("Listener stopped");
         }
     }
 
@@ -210,8 +254,6 @@ public sealed class DcsSocketService : IDisposable
 
     private void OnDataReceived(object? sender, DataReceivedEventArgs e)
     {
-        // SimpleTcp calls this potentially on a background thread
-        // Keep critical section small but consistent
         List<DcsExportData> parsed = new();
 
         lock (_sync)
@@ -225,7 +267,6 @@ public sealed class DcsSocketService : IDisposable
             var chunk = Encoding.UTF8.GetString(e.Data);
             sb.Append(chunk);
 
-            // parse newline-delimited JSON (one message per line)
             while (true)
             {
                 var line = ExtractLine_NoLock(sb);
@@ -240,18 +281,24 @@ public sealed class DcsSocketService : IDisposable
                     {
                         parsed.Add(data);
                         _lastDataReceivedUtc = DateTime.UtcNow;
+                        
+                        Logger.Info("Received data from DCS script: Source={Source}, Mission={Mission}, Theatre={Theatre}, Sortie={Sortie}, Timestamp={Timestamp}",
+                            data.Source ?? "unknown",
+                            data.Mission?.Theatre ?? "N/A",
+                            data.Mission?.Theatre ?? "N/A",
+                            data.Mission?.Sortie ?? "N/A",
+                            data.Timestamp);
                     }
                 }
-                catch (JsonException)
+                catch (JsonException ex)
                 {
-                    // ignore malformed/partial lines (but with newline framing, this should be rare)
+                    Logger.Warn(ex, "Failed to parse JSON from script: {Line}", line.Length > 200 ? line.Substring(0, 200) + "..." : line);
                 }
             }
 
             RaiseConnectionStatusIfChanged_NoLock();
         }
 
-        // Invoke outside lock
         foreach (var d in parsed)
         {
             DataReceived?.Invoke(this, d);
@@ -276,59 +323,6 @@ public sealed class DcsSocketService : IDisposable
         return null;
     }
 
-    public async Task<bool> SendCommandAsync(DcsCommand command)
-    {
-        ThrowIfDisposed();
-
-        SimpleTcpServer? server;
-        List<string> clients;
-
-        lock (_sync)
-        {
-            server = _server;
-            if (server is null || !server.IsListening)
-                return false;
-
-            clients = server.GetClients().ToList();
-            if (clients.Count == 0)
-                return false;
-        }
-
-        try
-        {
-            command.Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            
-            // Debug: Log the command before serialization
-            System.Diagnostics.Debug.WriteLine($"SendCommandAsync: Command type={command.GetType().Name}, Type={command.Type}");
-            if (command is ButtonPressCommand btnCmd)
-            {
-                System.Diagnostics.Debug.WriteLine($"SendCommandAsync: ButtonPressCommand - Button={btnCmd.Button}, DeviceId={btnCmd.DeviceId}, ActionId={btnCmd.ActionId}");
-            }
-            
-            // Use a custom serializer that explicitly includes all properties
-            // Don't use PropertyNamingPolicy for commands since we use explicit JsonPropertyName attributes
-            var jsonOptions = new JsonSerializerOptions
-            {
-                WriteIndented = false,
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never // Include all properties, even empty strings
-            };
-            
-            var json = JsonSerializer.Serialize(command, command.GetType(), jsonOptions) + "\n";
-            System.Diagnostics.Debug.WriteLine($"SendCommandAsync: Serialized JSON: {json.Trim()}");
-            
-            var bytes = Encoding.UTF8.GetBytes(json);
-
-            foreach (var c in clients)
-                await server.SendAsync(c, bytes);
-
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     private int SafeClientCount()
     {
         try { return _server?.GetClients().Count() ?? 0; }
@@ -340,8 +334,21 @@ public sealed class DcsSocketService : IDisposable
         var now = IsConnected;
         if (now == _lastReportedConnected) return;
 
+        var wasConnected = _lastReportedConnected;
         _lastReportedConnected = now;
+        
+        var dataAge = (DateTime.UtcNow - _lastDataReceivedUtc).TotalSeconds;
+        Logger.Debug("Connection status changed: {WasConnected} -> {Now} (data age: {DataAge:F1}s, listening: {IsListening}, clients: {ClientCount})",
+            wasConnected, now, dataAge, _server?.IsListening ?? false, SafeClientCount());
+        
         ConnectionStatusChanged?.Invoke(this, now);
+    }
+
+    private void RaiseListeningStatusChanged_NoLock()
+    {
+        var isListening = _server is not null && _server.IsListening;
+        Logger.Debug("Listening status changed: IsListening={IsListening}", isListening);
+        ListeningStatusChanged?.Invoke(isListening);
     }
 
     private void ThrowIfDisposed()
