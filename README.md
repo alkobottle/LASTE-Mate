@@ -4,7 +4,11 @@ An [Avalonia](https://github.com/AvaloniaUI/Avalonia)-based application that rep
 
    ![LASTE-Mate Screenshot](docs/screenshots/Screenshot.png)
 
-   <video src="docs/demo/LASTE-Mate-Demo.mp4" controls width="100%"></video>
+   
+
+https://github.com/user-attachments/assets/d735a22e-c935-4e58-963c-616ecae58616
+
+
 
 ## Features
 
