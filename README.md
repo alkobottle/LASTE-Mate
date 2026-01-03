@@ -115,7 +115,7 @@ File-based mode is an alternative connection method if TCP socket isn’t possib
 
 3. **Start DCS and load a mission**:
    - The application will automatically read wind data from DCS
-   - Calculations update automatically as new data is received (mission load/slot change
+   - Calculations update automatically as new data is received (mission load/slot change)
    - Verify the detected map is correct, as the magnetic variations differ per map and influence the result.
 
 4. **View the results** in the CDU Wind Lines table
@@ -245,6 +245,25 @@ The calculator mirrors the Excel workbook logic:
 - **DCS-BIOS Export**: Receives CDU/display/status data from DCS-BIOS
   - Transport: DCS-BIOS export stream (binary; default multicast 239.255.50.10:5010, configurable via BIOSConfig.lua)
   - Used for: reading CDU lines (e.g., to detect "INPUT ERROR")
+
+## Development
+
+LASTE-Mate is built using:
+- **.NET 10.0** SDK
+- **Avalonia UI** framework (cross-platform UI)
+
+### Building from Source
+
+1. Install the [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+2. Clone the repository
+3. Build the solution:
+   ```bash
+   dotnet build
+   ```
+4. Run the application:
+   ```bash
+   dotnet run --project LASTE-Mate.csproj
+   ```   
 
 ## License
 

@@ -85,6 +85,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private bool _isDebugLogExpanded;
     [ObservableProperty] private bool _isSettingsExpanded = false;
 
+    [ObservableProperty] private string _appVersion = VersionHelper.GetVersion();
+
     private CancellationTokenSource? _cduSendCancellationTokenSource;
 
     public MainWindowViewModel()
@@ -127,11 +129,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             TcpPort = config.TcpPort <= 0 ? 10309 : config.TcpPort;
             AutoUpdate = config.AutoUpdate;
 
-            // Set ConnectionMode directly to avoid triggering OnConnectionModeChanged during initialization
+            // Set ConnectionMode (OnConnectionModeChanged is guarded by _initializing)
             if (Enum.TryParse<ConnectionMode>(config.ConnectionMode, out var mode))
-                _connectionMode = mode;
+                ConnectionMode = mode;
             else
-                _connectionMode = ConnectionMode.TcpSocket;
+                ConnectionMode = ConnectionMode.TcpSocket;
         }
         finally
         {

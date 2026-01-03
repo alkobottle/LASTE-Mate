@@ -7,7 +7,7 @@
         x:Class="LASTE_Mate.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="LASTE-Mate"
+        Title="{Binding AppVersion, StringFormat='LASTE-Mate v{0}'}"
         Width="1335" Height="850"
         MinWidth="985" MinHeight="850">
 
@@ -22,7 +22,7 @@
         <!-- Default typography -->
         <Style Selector="TextBlock">
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="11"/>
         </Style>
 
         <Style Selector="TextBlock.sectionTitle">
@@ -92,6 +92,17 @@
     </Window.Styles>
 
     <Grid RowDefinitions="*" ColumnDefinitions="400,*,Auto" Margin="10">
+        <!-- Version overlay in lower left corner -->
+        <TextBlock Grid.Row="0" Grid.Column="0"
+                   Text="{Binding AppVersion, StringFormat='v{0}'}"
+                   FontSize="10"
+                   Foreground="#808080"
+                   VerticalAlignment="Bottom"
+                   HorizontalAlignment="Left"
+                   Margin="5"
+                   Opacity="0.6"
+                   ZIndex="1000"/>
+        
         <!-- =========================================================
              LEFT: Inputs
              ========================================================= -->
@@ -238,10 +249,19 @@
 
             <!-- Mission Info -->
             <Border Grid.Row="0" Classes="card" Margin="0,0,0,10">
-                <StackPanel Spacing="6">
-                    <TextBlock Classes="sectionTitle" Text="Mission Information"/>
-
-                    <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="10">
+                <StackPanel>
+                    <Border Background="#4A4A4A"
+                            Padding="12,10"
+                            BorderBrush="#505050"
+                            BorderThickness="0,0,0,1">
+                        <TextBlock Text="Mission Information"
+                                   FontWeight="Bold"
+                                   FontSize="13"
+                                   Foreground="White"
+                                   VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Spacing="6" Margin="0,10,0,0">
+                        <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="10">
                         <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Width="90" Text="Theatre:"/>
                         <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding MissionTheatre, TargetNullValue='Not available'}"
                                    FontFamily="Consolas, Courier New" FontSize="11"/>
@@ -260,27 +280,37 @@
 
                         <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Width="90" Text="Updated:"/>
                         <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding DataTimestamp, TargetNullValue='Not available'}"
-                                   FontFamily="Consolas, Courier New" FontSize="10"/>
-                    </Grid>
+                                   FontFamily="Consolas, Courier New" FontSize="11"/>
+                        </Grid>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
             <!-- Wind lines (table) -->
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                 <Border Classes="card">
-                    <StackPanel Spacing="10">
-                        <TextBlock Classes="sectionTitle" Text="CDU Wind Lines"/>
-
-                        <Border Classes="tableFrame" MinHeight="280">
+                    <StackPanel>
+                        <Border Background="#4A4A4A"
+                                Padding="12,10"
+                                BorderBrush="#505050"
+                                BorderThickness="0,0,0,1">
+                            <TextBlock Text="CDU Wind Lines"
+                                       FontWeight="Bold"
+                                       FontSize="13"
+                                       Foreground="White"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Spacing="10" Margin="0,10,0,0">
+                            <Border Classes="tableFrame" MinHeight="280">
                             <Grid>
                                 <!-- Header -->
                                 <Border Classes="tableHeader">
                                     <Grid ColumnDefinitions="90,110,110,110,130">
-                                        <TextBlock Grid.Column="0" Text="Alt (kft)" FontWeight="Bold" FontSize="12"/>
-                                        <TextBlock Grid.Column="1" Text="Bearing (°)" FontWeight="Bold" FontSize="12"/>
-                                        <TextBlock Grid.Column="2" Text="Speed (kt)" FontWeight="Bold" FontSize="12"/>
-                                        <TextBlock Grid.Column="3" Text="Temp (°C)" FontWeight="Bold" FontSize="12"/>
-                                        <TextBlock Grid.Column="4" Text="BRG+SPD" FontWeight="Bold" FontSize="12"/>
+                                        <TextBlock Grid.Column="0" Text="Alt (kft)" FontWeight="Bold" FontSize="11"/>
+                                        <TextBlock Grid.Column="1" Text="Bearing (°)" FontWeight="Bold" FontSize="11"/>
+                                        <TextBlock Grid.Column="2" Text="Speed (kt)" FontWeight="Bold" FontSize="11"/>
+                                        <TextBlock Grid.Column="3" Text="Temp (°C)" FontWeight="Bold" FontSize="11"/>
+                                        <TextBlock Grid.Column="4" Text="BRG+SPD" FontWeight="Bold" FontSize="11"/>
                                     </Grid>
                                 </Border>
 
@@ -295,20 +325,20 @@
                                                     MinHeight="40">
                                                 <Grid ColumnDefinitions="90,110,110,110,130">
                                                     <TextBlock Grid.Column="0" Text="{Binding AltText}"
-                                                               FontFamily="Consolas, Courier New" FontSize="12"
+                                                               FontFamily="Consolas, Courier New" FontSize="11"
                                                                VerticalAlignment="Center"/>
                                                     <TextBlock Grid.Column="1" Text="{Binding BrgText}"
-                                                               FontFamily="Consolas, Courier New" FontSize="12"
+                                                               FontFamily="Consolas, Courier New" FontSize="11"
                                                                VerticalAlignment="Center"/>
                                                     <TextBlock Grid.Column="2" Text="{Binding SpdText}"
-                                                               FontFamily="Consolas, Courier New" FontSize="12"
+                                                               FontFamily="Consolas, Courier New" FontSize="11"
                                                                VerticalAlignment="Center"/>
                                                     <TextBlock Grid.Column="3" Text="{Binding TmpText}"
-                                                               FontFamily="Consolas, Courier New" FontSize="12"
+                                                               FontFamily="Consolas, Courier New" FontSize="11"
                                                                VerticalAlignment="Center"/>
                                                     <TextBlock Grid.Column="4" Text="{Binding BrgPlusSpd}"
                                                                FontFamily="Consolas, Courier New"
-                                                               FontSize="12"
+                                                               FontSize="11"
                                                                FontWeight="SemiBold"
                                                                Foreground="#4A9EFF"
                                                                VerticalAlignment="Center"/>
@@ -318,7 +348,8 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </Grid>
-                        </Border>
+                            </Border>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
             </ScrollViewer>
@@ -326,97 +357,138 @@
             <!-- DCS Connection (bottom) -->
             <Border Grid.Row="2" Classes="card" Margin="0,10,0,0">
                 <StackPanel>
-                    <TextBlock Classes="sectionTitle" Text="DCS Connection"/>
-
-                    <StackPanel Spacing="10">
-
-                        <!-- Connection Status -->
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Ellipse Width="12" Height="12">
-                                <Ellipse.Fill>
-                                    <Binding Path="IsDcsConnected" Converter="{StaticResource BoolToColorConverter}"/>
-                                </Ellipse.Fill>
-                            </Ellipse>
-                            <TextBlock Text="{Binding IsDcsConnected, Converter={StaticResource BoolToStatusConverter}}"
+                    <!-- Header with title and settings button -->
+                    <Border Background="#4A4A4A"
+                            Padding="12,10"
+                            BorderBrush="#505050"
+                            BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" 
+                                       Text="DCS Connection"
+                                       FontWeight="Bold"
+                                       FontSize="13"
+                                       Foreground="White"
                                        VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" 
+                                Content="Settings"
+                                VerticalAlignment="Center"
+                                Padding="12,6">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedRight" 
+                                        ShowMode="TransientWithDismissOnPointerMoveAway">
+                                    <Border Background="#3A3A3A" 
+                                            BorderBrush="#505050" 
+                                            BorderThickness="1" 
+                                            CornerRadius="6" 
+                                            Padding="15"
+                                            MinWidth="400"
+                                            MaxWidth="450">
+                                        <StackPanel Spacing="12">
+                                            <!-- Connection Mode -->
+                                            <StackPanel Spacing="6">
+                                                <TextBlock Text="Connection Mode:" FontWeight="SemiBold" FontSize="11" Foreground="White"/>
+                                                <RadioButton Content="TCP Socket (Default)"
+                                                             IsChecked="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=TcpSocket}"
+                                                             GroupName="ConnectionMode"
+                                                             Command="{Binding SetConnectionModeCommand}"
+                                                             CommandParameter="TcpSocket"/>
+                                                <RadioButton Content="File-based (Read-only)"
+                                                             IsChecked="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=FileBased}"
+                                                             GroupName="ConnectionMode"
+                                                             Command="{Binding SetConnectionModeCommand}"
+                                                             CommandParameter="FileBased"/>
+                                            </StackPanel>
+
+                                            <!-- File mode -->
+                                            <StackPanel IsVisible="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=FileBased}"
+                                                        Spacing="8">
+                                                <CheckBox Content="Auto-update from DCS"
+                                                          IsChecked="{Binding AutoUpdate}"/>
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                    <TextBox Grid.Column="0"
+                                                             Text="{Binding ExportFilePath}"
+                                                             Watermark="Export file path..."
+                                                             IsReadOnly="True"/>
+                                                    <Button Grid.Column="1"
+                                                            Content="Browse..."
+                                                            Command="{Binding BrowseExportPathCommand}"
+                                                            Padding="12,6"/>
+                                                </Grid>
+                                            </StackPanel>
+
+                                            <!-- TCP mode -->
+                                            <StackPanel IsVisible="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=TcpSocket}"
+                                                        Spacing="8">
+                                                <CheckBox Content="Auto-update from DCS"
+                                                          IsChecked="{Binding AutoUpdate}"/>
+
+                                                <Grid ColumnDefinitions="90,Auto" ColumnSpacing="10">
+                                                    <TextBlock Grid.Column="0" Classes="label" Width="90" Text="TCP Port:"/>
+                                                    <NumericUpDown Grid.Column="1"
+                                                                   Value="{Binding TcpPort}"
+                                                                   Minimum="1024"
+                                                                   Maximum="65535"
+                                                                   Width="140"
+                                                                   FormatString="0"
+                                                                   GotFocus="NumericUpDown_GotFocus"/>
+                                                </Grid>
+
+                                                <Button Command="{Binding ToggleTcpServerCommand}"
+                                                        IsEnabled="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=TcpSocket}"
+                                                        Padding="15,6"
+                                                        HorizontalAlignment="Left">
+                                                    <Button.Content>
+                                                        <Binding Path="IsTcpServerRunning"
+                                                                 Converter="{StaticResource BoolToContentConverter}"
+                                                                 ConverterParameter="Stop TCP Server|Start TCP Server"/>
+                                                    </Button.Content>
+                                                </Button>
+
+                                                <TextBlock Text="{Binding ListenerError}"
+                                                           Foreground="#FF6B6B"
+                                                           TextWrapping="Wrap"
+                                                           IsVisible="{Binding ListenerError, Converter={StaticResource BoolInvertConverter}}"
+                                                           Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Status Indicators -->
+                    <StackPanel Margin="0,10,0,0" Spacing="10">
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <!-- TCP Server Status (only visible in TCP mode) -->
+                            <StackPanel Orientation="Horizontal" Spacing="6"
+                                       IsVisible="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=TcpSocket}">
+                                <TextBlock Text="TCP Server:" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
+                                <Ellipse Width="10" Height="10">
+                                    <Ellipse.Fill>
+                                        <Binding Path="IsTcpServerRunning" Converter="{StaticResource BoolToColorConverter}"/>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+                                <TextBlock Text="{Binding IsTcpServerRunning, Converter={StaticResource BoolToContentConverter}, ConverterParameter='Running|Stopped'}"
+                                           VerticalAlignment="Center" FontSize="11"/>
+                            </StackPanel>
+
+                            <!-- Connection Status -->
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="DCS:" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
+                                <Ellipse Width="10" Height="10">
+                                    <Ellipse.Fill>
+                                        <Binding Path="IsDcsConnected" Converter="{StaticResource BoolToColorConverter}"/>
+                                    </Ellipse.Fill>
+                                </Ellipse>
+                                <TextBlock Text="{Binding IsDcsConnected, Converter={StaticResource BoolToStatusConverter}}"
+                                           VerticalAlignment="Center" FontSize="11"/>
+                            </StackPanel>
                         </StackPanel>
 
-                        <!-- Settings -->
-                        <Expander Header="Settings"
-                                  IsExpanded="{Binding IsSettingsExpanded}">
-                            <StackPanel Spacing="12" Margin="4,10,0,0">
-
-                                <!-- Connection Mode -->
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="Connection Mode:" FontWeight="SemiBold" FontSize="11"/>
-                                    <RadioButton Content="TCP Socket (Default)"
-                                                 IsChecked="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=TcpSocket}"
-                                                 GroupName="ConnectionMode"
-                                                 Command="{Binding SetConnectionModeCommand}"
-                                                 CommandParameter="TcpSocket"/>
-                                    <RadioButton Content="File-based (Read-only)"
-                                                 IsChecked="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=FileBased}"
-                                                 GroupName="ConnectionMode"
-                                                 Command="{Binding SetConnectionModeCommand}"
-                                                 CommandParameter="FileBased"/>
-                                </StackPanel>
-
-                                <!-- File mode -->
-                                <StackPanel IsVisible="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=FileBased}"
-                                            Spacing="8">
-                                    <CheckBox Content="Auto-update from DCS"
-                                              IsChecked="{Binding AutoUpdate}"/>
-                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                        <TextBox Grid.Column="0"
-                                                 Text="{Binding ExportFilePath}"
-                                                 Watermark="Export file path..."
-                                                 IsReadOnly="True"/>
-                                        <Button Grid.Column="1"
-                                                Content="Browse..."
-                                                Command="{Binding BrowseExportPathCommand}"
-                                                Padding="12,6"/>
-                                    </Grid>
-                                </StackPanel>
-
-                                <!-- TCP mode -->
-                                <StackPanel IsVisible="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=TcpSocket}"
-                                            Spacing="8">
-                                    <CheckBox Content="Auto-update from DCS"
-                                              IsChecked="{Binding AutoUpdate}"/>
-
-                                    <Grid ColumnDefinitions="90,Auto" ColumnSpacing="10">
-                                        <TextBlock Grid.Column="0" Classes="label" Width="90" Text="TCP Port:"/>
-                                        <NumericUpDown Grid.Column="1"
-                                                       Value="{Binding TcpPort}"
-                                                       Minimum="1024"
-                                                       Maximum="65535"
-                                                       Width="140"
-                                                       FormatString="0"
-                                                       GotFocus="NumericUpDown_GotFocus"/>
-                                    </Grid>
-
-                                    <Button Command="{Binding ToggleTcpServerCommand}"
-                                            IsEnabled="{Binding ConnectionMode, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=TcpSocket}"
-                                            Padding="15,6"
-                                            HorizontalAlignment="Left">
-                                        <Button.Content>
-                                            <Binding Path="IsTcpServerRunning"
-                                                     Converter="{StaticResource BoolToContentConverter}"
-                                                     ConverterParameter="Stop TCP Server|Start TCP Server"/>
-                                        </Button.Content>
-                                    </Button>
-
-                                    <TextBlock Text="{Binding ListenerError}"
-                                               Foreground="#FF6B6B"
-                                               TextWrapping="Wrap"
-                                               IsVisible="{Binding ListenerError, Converter={StaticResource BoolInvertConverter}}"
-                                               Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Expander>
-
-                        <!-- CDU Send -->
-                        <StackPanel Spacing="8">
+                    <!-- CDU Send -->
+                    <StackPanel Spacing="8">
                             <Button Classes="bigAction"
                                     Content="Send Data to CDU"
                                     Command="{Binding SendToCduCommand}"
@@ -443,8 +515,8 @@
                                            Foreground="#4A9EFF"/>
                             </Grid>
                         </StackPanel>
-
                     </StackPanel>
+
                 </StackPanel>
             </Border>
         </Grid>
