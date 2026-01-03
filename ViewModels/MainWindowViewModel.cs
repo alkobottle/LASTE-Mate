@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.Input;
 using LASTE_Mate.Core;
 using LASTE_Mate.Models;
 using LASTE_Mate.Services;
+using NLog;
 
 namespace LASTE_Mate.ViewModels;
 
@@ -61,6 +62,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty] private bool _isTcpServerRunning;
     [ObservableProperty] private bool _tcpListenerEnabled;
+    
+    [ObservableProperty] private int _dcsBiosPort = 7778;
 
     [ObservableProperty] private string? _listenerError;
 
@@ -78,6 +81,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private CancellationTokenSource? _cduSendCancellationTokenSource;
     private System.Threading.Timer? _connectionStatusTimer;
+    private static readonly ILogger Logger = LoggingService.GetLogger<MainWindowViewModel>();
 
     public MainWindowViewModel(
         DcsSocketService dcsSocketService,
@@ -107,7 +111,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var actualIsListening = _dcsSocketService.IsListening;
         if (IsTcpServerRunning != actualIsListening)
         {
-            Console.WriteLine($"[MainWindowViewModel] Initial sync IsTcpServerRunning: {IsTcpServerRunning} -> {actualIsListening}");
+            Logger.Debug("Initial sync IsTcpServerRunning: {Old} -> {New}", IsTcpServerRunning, actualIsListening);
             IsTcpServerRunning = actualIsListening;
         }
 
@@ -116,7 +120,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         _initializing = false;
         
-        Console.WriteLine($"[MainWindowViewModel] Instance created, DcsSocketService singleton instance: {_dcsSocketService.GetHashCode():X8}");
+        Logger.Info("Instance created, DcsSocketService singleton instance: {HashCode:X8}", _dcsSocketService.GetHashCode());
     }
 
     public bool CanSendToCdu => Results.Count > 0;
@@ -131,6 +135,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             TcpPort = config.TcpPort <= 0 ? 10309 : config.TcpPort;
             AutoUpdate = config.AutoUpdate;
             TcpListenerEnabled = config.TcpListenerEnabled;
+            DcsBiosPort = config.DcsBiosPort <= 0 ? 7778 : config.DcsBiosPort;
         }
         finally
         {
@@ -144,7 +149,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             TcpPort = TcpPort,
             AutoUpdate = AutoUpdate,
-            TcpListenerEnabled = TcpListenerEnabled
+            TcpListenerEnabled = TcpListenerEnabled,
+            DcsBiosPort = DcsBiosPort
         };
 
         _configService.SaveConfig(config);
@@ -158,31 +164,31 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         // Prevent concurrent calls to avoid double-starting the server
         if (_isApplyingConnectionState)
         {
-            Console.WriteLine($"[MainWindowViewModel] ApplyConnectionState: Already applying, skipping duplicate call");
+            Logger.Debug("ApplyConnectionState: Already applying, skipping duplicate call");
             return;
         }
 
         _isApplyingConnectionState = true;
         try
         {
-            Console.WriteLine($"[MainWindowViewModel] ApplyConnectionState: TcpListenerEnabled={TcpListenerEnabled}, TcpPort={TcpPort}");
+            Logger.Debug("ApplyConnectionState: TcpListenerEnabled={TcpListenerEnabled}, TcpPort={TcpPort}", TcpListenerEnabled, TcpPort);
             
             ListenerError = null;
 
             if (TcpListenerEnabled)
             {
                 // Start TCP listener asynchronously in background thread (best practice for Avalonia)
-                Console.WriteLine($"[MainWindowViewModel] Starting TCP listener on port {TcpPort} in background thread");
+                Logger.Info("Starting TCP listener on port {TcpPort} in background thread", TcpPort);
                 _ = Task.Run(async () =>
                 {
                     try
                     {
                         await _dcsSocketService.StartListeningAsync(TcpPort);
-                        Console.WriteLine($"[MainWindowViewModel] TCP listener start task completed");
+                        Logger.Debug("TCP listener start task completed");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[MainWindowViewModel] Failed to start TCP listener: {ex.Message}");
+                        Logger.Error(ex, "Failed to start TCP listener");
                         // ListenerError is set by the service, UI will be updated via events
                     }
                 });
@@ -190,7 +196,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             else
             {
                 // Stop TCP listener
-                Console.WriteLine($"[MainWindowViewModel] TcpListenerEnabled=false, stopping TCP listener");
+                Logger.Info("TcpListenerEnabled=false, stopping TCP listener");
                 _dcsSocketService.StopListening();
                 IsTcpServerRunning = false;
             }
@@ -241,7 +247,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var actualIsListening = _dcsSocketService.IsListening;
             if (IsTcpServerRunning != actualIsListening)
             {
-                Console.WriteLine($"[MainWindowViewModel] Syncing IsTcpServerRunning: {IsTcpServerRunning} -> {actualIsListening}");
+                Logger.Debug("Syncing IsTcpServerRunning: {Old} -> {New}", IsTcpServerRunning, actualIsListening);
                 IsTcpServerRunning = actualIsListening;
             }
 
@@ -271,7 +277,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         // Marshal to UI thread and update the UI property
         Dispatcher.UIThread.Post(() =>
         {
-            Console.WriteLine($"[MainWindowViewModel] OnListeningStatusChanged: isListening={isListening}, updating IsTcpServerRunning");
+            Logger.Debug("OnListeningStatusChanged: isListening={IsListening}, updating IsTcpServerRunning", isListening);
             IsTcpServerRunning = isListening;
         });
     }
@@ -436,7 +442,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             // Keep UI stable; optionally surface to a status field later
-            Console.WriteLine($"Calculation error: {ex.Message}");
+            Logger.Error(ex, "Calculation error");
         }
     }
 
@@ -498,7 +504,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         try
         {
-            Console.WriteLine("SendToCdu: Starting CDU button sequence");
+            Logger.Info("SendToCdu: Starting CDU button sequence");
 
             // Generate the complete sequence (page & height setup + wind data + temperature)
             var windLines = Results.ToArray();
@@ -513,26 +519,26 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 CduSendProgress = "Completed successfully";
                 AddDebugLog("Sequence completed successfully");
-                Console.WriteLine("SendToCdu: Successfully executed CDU button sequence");
+                Logger.Info("SendToCdu: Successfully executed CDU button sequence");
             }
             else
             {
                 CduSendProgress = "Failed";
                 AddDebugLog("Sequence execution failed");
-                Console.WriteLine("SendToCdu: Failed to execute CDU button sequence");
+                Logger.Warn("SendToCdu: Failed to execute CDU button sequence");
             }
         }
         catch (OperationCanceledException)
         {
             CduSendProgress = "Cancelled";
             AddDebugLog("Sequence cancelled by user");
-            Console.WriteLine("SendToCdu: Cancelled by user");
+            Logger.Info("SendToCdu: Cancelled by user");
         }
         catch (Exception ex)
         {
             CduSendProgress = $"Error: {ex.Message}";
             AddDebugLog($"Error: {ex.Message}");
-            Console.WriteLine($"SendToCdu error: {ex.Message}");
+            Logger.Error(ex, "SendToCdu error");
         }
         finally
         {
@@ -599,6 +605,20 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         SaveConfig();
     }
 
+    partial void OnDcsBiosPortChanged(int value)
+    {
+        if (_initializing) return;
+        SaveConfig();
+        // Note: DCS-BIOS port changes require app restart to take effect
+    }
+
+    partial void OnTcpListenerEnabledChanged(bool value)
+    {
+        if (_initializing) return;
+        ApplyConnectionState();
+        SaveConfig();
+    }
+
     partial void OnSelectedMapChanged(string value) => MaybeAutoCalculate();
     partial void OnGroundTempCChanged(int? value) => MaybeAutoCalculate();
     partial void OnGroundWindSpeedChanged(double? value) => MaybeAutoCalculate();
@@ -613,7 +633,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        Console.WriteLine("[MainWindowViewModel] Disposing...");
+        Logger.Debug("Disposing...");
 
         try
         {
@@ -641,11 +661,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _dcsSocketService.Dispose();
             _dcsBiosService.Dispose();
 
-            Console.WriteLine("[MainWindowViewModel] Disposed successfully");
+            Logger.Debug("Disposed successfully");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[MainWindowViewModel] Error during disposal: {ex.Message}");
+            Logger.Error(ex, "Error during disposal");
         }
     }
 }

@@ -6,7 +6,7 @@
         mc:Ignorable="d" d:DesignWidth="1335" d:DesignHeight="850"
         x:Class="LASTE_Mate.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="/Assets/Square44x44Logo.targetsize-256.png"
         Title="{Binding AppVersion, StringFormat='LASTE-Mate v{0}'}"
         Width="1335" Height="850"
         MinWidth="985" MinHeight="850">
@@ -386,6 +386,8 @@
                                         <StackPanel Spacing="12">
                                             <!-- TCP Socket Settings -->
                                             <StackPanel Spacing="8">
+                                                <TextBlock Text="TCP Socket Settings" FontWeight="SemiBold" FontSize="12" Foreground="White" Margin="0,0,0,4"/>
+                                                
                                                 <CheckBox Content="Auto-update from DCS"
                                                           IsChecked="{Binding AutoUpdate}"/>
 
@@ -400,13 +402,16 @@
                                                                    GotFocus="NumericUpDown_GotFocus"/>
                                                 </Grid>
 
+                                                <CheckBox Content="Start receiving automatically on app launch"
+                                                          IsChecked="{Binding TcpListenerEnabled}"/>
+
                                                 <Button Command="{Binding ToggleTcpServerCommand}"
                                                         Padding="15,6"
                                                         HorizontalAlignment="Left">
                                                     <Button.Content>
                                                         <Binding Path="IsTcpServerRunning"
                                                                  Converter="{StaticResource BoolToContentConverter}"
-                                                                 ConverterParameter="Stop TCP Server|Start TCP Server"/>
+                                                                 ConverterParameter="Stop Receiving|Start Receiving"/>
                                                     </Button.Content>
                                                 </Button>
 
@@ -414,6 +419,27 @@
                                                            Foreground="#FF6B6B"
                                                            TextWrapping="Wrap"
                                                            IsVisible="{Binding ListenerError, Converter={StaticResource BoolInvertConverter}}"
+                                                           Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                            
+                                            <!-- DCS-BIOS Settings -->
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Text="DCS-BIOS Settings" FontWeight="SemiBold" FontSize="12" Foreground="White" Margin="0,8,0,4"/>
+                                                
+                                                <Grid ColumnDefinitions="90,Auto" ColumnSpacing="10">
+                                                    <TextBlock Grid.Column="0" Classes="label" Width="90" Text="DCS-BIOS Port:"/>
+                                                    <NumericUpDown Grid.Column="1"
+                                                                   Value="{Binding DcsBiosPort}"
+                                                                   Minimum="1024"
+                                                                   Maximum="65535"
+                                                                   Width="140"
+                                                                   FormatString="0"
+                                                                   GotFocus="NumericUpDown_GotFocus"/>
+                                                </Grid>
+                                                
+                                                <TextBlock Text="Note: Port changes require app restart to take effect"
+                                                           FontSize="10"
+                                                           Foreground="#808080"
                                                            Margin="0,4,0,0"/>
                                             </StackPanel>
                                         </StackPanel>
@@ -427,15 +453,15 @@
                     <!-- Status Indicators -->
                     <StackPanel Margin="0,10,0,0" Spacing="10">
                         <StackPanel Orientation="Horizontal" Spacing="16">
-                            <!-- TCP Server Status -->
+                            <!-- Ready to Receive Status -->
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="TCP Server:" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBlock Text="Ready to Receive:" FontWeight="SemiBold" FontSize="11" VerticalAlignment="Center"/>
                                 <Ellipse Width="10" Height="10">
                                     <Ellipse.Fill>
                                         <Binding Path="IsTcpServerRunning" Converter="{StaticResource BoolToColorConverter}"/>
                                     </Ellipse.Fill>
                                 </Ellipse>
-                                <TextBlock Text="{Binding IsTcpServerRunning, Converter={StaticResource BoolToContentConverter}, ConverterParameter='Running|Stopped'}"
+                                <TextBlock Text="{Binding IsTcpServerRunning, Converter={StaticResource BoolToContentConverter}, ConverterParameter='Yes|No'}"
                                            VerticalAlignment="Center" FontSize="11"/>
                             </StackPanel>
 

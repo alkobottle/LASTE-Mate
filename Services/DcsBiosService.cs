@@ -5,11 +5,13 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using NLog;
 
 namespace LASTE_Mate.Services;
 
 public sealed class DcsBiosService : IDisposable
 {
+    private static readonly ILogger Logger = LoggingService.GetLogger<DcsBiosService>();
     private const int DefaultSendPort = 7778;
     private const int DefaultReceivePort = 7777;
     private static readonly IPAddress DefaultHost = IPAddress.Parse("127.0.0.1");
@@ -57,11 +59,11 @@ public sealed class DcsBiosService : IDisposable
                 _receiveClient = new UdpClient(ReceivePort);
                 _receiveCancellationTokenSource = new CancellationTokenSource();
                 _receiveTask = Task.Run(() => ReceiveLoop(_receiveCancellationTokenSource.Token));
-                Console.WriteLine($"DcsBiosService: Started receiving on port {ReceivePort}");
+                Logger.Info("Started receiving on port {ReceivePort}", ReceivePort);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"DcsBiosService: Failed to start receiving: {ex.Message}");
+                Logger.Error(ex, "Failed to start receiving");
                 _receiveClient?.Dispose();
                 _receiveClient = null;
             }
@@ -82,13 +84,18 @@ public sealed class DcsBiosService : IDisposable
             {
                 break;
             }
+            catch (OperationCanceledException)
+            {
+                // Expected when shutting down - cancellation token was triggered
+                break;
+            }
             catch (SocketException ex) when (ex.SocketErrorCode == SocketError.Interrupted)
             {
                 break;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"DcsBiosService: Receive error: {ex.Message}");
+                Logger.Warn(ex, "Receive error");
                 await Task.Delay(100, cancellationToken);
             }
         }
@@ -168,12 +175,12 @@ public sealed class DcsBiosService : IDisposable
             var endpoint = new IPEndPoint(Host, SendPort);
             await _sendClient.SendAsync(bytes, bytes.Length, endpoint);
 
-            Console.WriteLine($"DcsBiosService: Sent {control} {value} to {Host}:{SendPort}");
+            Logger.Debug("Sent {Control} {Value} to {Host}:{SendPort}", control, value, Host, SendPort);
             return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"DcsBiosService: Error sending {control} {value}: {ex.Message}");
+            Logger.Warn(ex, "Error sending {Control} {Value}", control, value);
             return false;
         }
     }
@@ -183,7 +190,7 @@ public sealed class DcsBiosService : IDisposable
     /// </summary>
     public async Task<bool> ClearCduErrorAsync()
     {
-        Console.WriteLine("DcsBiosService: Clearing CDU error with CLR");
+        Logger.Debug("Clearing CDU error with CLR");
         var pressed = await SendControlAsync("CDU_CLR", 1);
         if (!pressed)
         {
@@ -219,7 +226,7 @@ public sealed class DcsBiosService : IDisposable
     {
         if (targetPosition != 0 && targetPosition != 2)
         {
-            Console.WriteLine($"DcsBiosService: Invalid PAGE rocker position {targetPosition}, must be 0 or 2");
+            Logger.Warn("Invalid PAGE rocker position {TargetPosition}, must be 0 or 2", targetPosition);
             return false;
         }
 

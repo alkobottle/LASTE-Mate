@@ -80,6 +80,15 @@ graph TB
    - Make sure correct map was identified by LASTE-Mate, as the magnetic variations differ and influence the result.
 
 5. **Send data to CDU**:
+   
+   **Important Prerequisites**: Before sending data to the CDU, ensure:
+   - The player is seated in the aircraft (not in the briefing screen)
+   - The mission briefing has been confirmed with the "Fly" button
+   - The aircraft is powered up (electrical systems on)
+   
+   Without these prerequisites, the CDU automation will not work correctly.
+   
+   Once ready:
    - Click "Send Data to CDU" button
    - The app will automatically:
      - Navigate to the LASTE / WIND menu in the CDU

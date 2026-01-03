@@ -9,11 +9,14 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using LASTE_Mate.ViewModels;
+using LASTE_Mate.Services;
+using NLog;
 
 namespace LASTE_Mate.Views;
 
 public partial class MainWindow : Window
 {
+    private static readonly ILogger Logger = LoggingService.GetLogger<MainWindow>();
     private ScrollViewer? _debugLogScrollViewer;
 
     public MainWindow()
@@ -99,7 +102,7 @@ public partial class MainWindow : Window
         }
         
         _isClosing = true;
-        Console.WriteLine("[MainWindow] Closing event fired");
+        Logger.Debug("Closing event fired");
         
         // Dispose resources - this will stop TCP listener and clean up
         if (DataContext is IDisposable disposable)
@@ -110,7 +113,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MainWindow] Error disposing DataContext: {ex.Message}");
+                Logger.Error(ex, "Error disposing DataContext");
             }
         }
     }
