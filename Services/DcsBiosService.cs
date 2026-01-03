@@ -86,7 +86,6 @@ public sealed class DcsBiosService : IDisposable
             }
             catch (OperationCanceledException)
             {
-                // Expected when shutting down - cancellation token was triggered
                 break;
             }
             catch (SocketException ex) when (ex.SocketErrorCode == SocketError.Interrupted)
@@ -126,9 +125,6 @@ public sealed class DcsBiosService : IDisposable
         }
     }
 
-    /// <summary>
-    /// Gets the current value of a DCS-BIOS control.
-    /// </summary>
     private string? GetControlValue(string control)
     {
         lock (_dataSync)
@@ -137,9 +133,6 @@ public sealed class DcsBiosService : IDisposable
         }
     }
 
-    /// <summary>
-    /// Checks if CDU_LINE9 contains an error message.
-    /// </summary>
     public bool HasCduError()
     {
         var line9 = GetControlValue("CDU_LINE9");
@@ -148,16 +141,12 @@ public sealed class DcsBiosService : IDisposable
             return false;
         }
 
-        // Check for common error patterns (case-insensitive)
         var upper = line9.ToUpperInvariant();
         return upper.Contains("INPUT ERROR") ||
                upper.Contains("ERROR") ||
                upper.Contains("INVALID");
     }
 
-    /// <summary>
-    /// Sends a DCS-BIOS control command in the format: "CONTROL VALUE\n"
-    /// </summary>
     public async Task<bool> SendControlAsync(string control, int value)
     {
         ThrowIfDisposed();
@@ -185,9 +174,6 @@ public sealed class DcsBiosService : IDisposable
         }
     }
 
-    /// <summary>
-    /// Sends a CLR command to clear CDU errors.
-    /// </summary>
     public async Task<bool> ClearCduErrorAsync()
     {
         Logger.Debug("Clearing CDU error with CLR");
@@ -202,9 +188,6 @@ public sealed class DcsBiosService : IDisposable
         return await SendControlAsync("CDU_CLR", 0);
     }
 
-    /// <summary>
-    /// Sends a press command (value=1) followed by a release command (value=0) after the specified delay.
-    /// </summary>
     public async Task<bool> PressAndReleaseAsync(string control, int holdMs = 50)
     {
         var pressed = await SendControlAsync(control, 1);
@@ -218,10 +201,6 @@ public sealed class DcsBiosService : IDisposable
         return await SendControlAsync(control, 0);
     }
 
-    /// <summary>
-    /// Handles the CDU PAGE rocker switch (3-position maintained switch).
-    /// Sets to targetPosition (0 or 2), holds for holdMs, then returns to center (1).
-    /// </summary>
     public async Task<bool> SetPageRockerAsync(int targetPosition, int holdMs = 300)
     {
         if (targetPosition != 0 && targetPosition != 2)
@@ -230,17 +209,14 @@ public sealed class DcsBiosService : IDisposable
             return false;
         }
 
-        // Set to target position
         var set = await SendControlAsync("CDU_PG", targetPosition);
         if (!set)
         {
             return false;
         }
 
-        // Hold
         await Task.Delay(holdMs);
 
-        // Return to center
         return await SendControlAsync("CDU_PG", 1);
     }
 

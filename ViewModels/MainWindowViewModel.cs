@@ -95,19 +95,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         _availableMaps = new ObservableCollection<string>(WindRecalculator.GetAvailableMaps());
 
-        // Subscribe to socket service events
         _dcsSocketService.DataReceived += OnDcsDataUpdated;
         _dcsSocketService.ConnectionStatusChanged += OnTcpConnectionStatusChanged;
         _dcsSocketService.ListenerError += OnListenerError;
         _dcsSocketService.ListeningStatusChanged += OnListeningStatusChanged;
 
-        // Load config without triggering side effects
         LoadConfig();
-
-        // Apply initial connection state exactly once
         ApplyConnectionState();
 
-        // Immediately sync TCP server running state after applying connection state
         var actualIsListening = _dcsSocketService.IsListening;
         if (IsTcpServerRunning != actualIsListening)
         {
@@ -115,7 +110,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             IsTcpServerRunning = actualIsListening;
         }
 
-        // Start timer for stale connection status updates
         _connectionStatusTimer = new System.Threading.Timer(OnConnectionStatusTimerTick, null, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
 
         _initializing = false;
@@ -156,12 +150,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _configService.SaveConfig(config);
     }
 
-    /// <summary>
-    /// Single source of truth for connection state. Applies the desired state based on TcpListenerEnabled.
-    /// </summary>
     private void ApplyConnectionState()
     {
-        // Prevent concurrent calls to avoid double-starting the server
         if (_isApplyingConnectionState)
         {
             Logger.Debug("ApplyConnectionState: Already applying, skipping duplicate call");
@@ -177,7 +167,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             if (TcpListenerEnabled)
             {
-                // Start TCP listener asynchronously in background thread (best practice for Avalonia)
                 Logger.Info("Starting TCP listener on port {TcpPort} in background thread", TcpPort);
                 _ = Task.Run(async () =>
                 {
@@ -189,13 +178,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                     catch (Exception ex)
                     {
                         Logger.Error(ex, "Failed to start TCP listener");
-                        // ListenerError is set by the service, UI will be updated via events
                     }
                 });
             }
             else
             {
-                // Stop TCP listener
                 Logger.Info("TcpListenerEnabled=false, stopping TCP listener");
                 _dcsSocketService.StopListening();
                 IsTcpServerRunning = false;
@@ -475,8 +462,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             _batchUpdating = false;
         }
-
-        MaybeAutoCalculate();
     }
 
 
@@ -609,7 +594,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         if (_initializing) return;
         SaveConfig();
-        // Note: DCS-BIOS port changes require app restart to take effect
     }
 
     partial void OnTcpListenerEnabledChanged(bool value)

@@ -40,7 +40,7 @@ public sealed class DcsSocketService : IDisposable
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
-        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never // Always include properties, even if null/empty
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never
     };
 
     public int Port { get; private set; } = DefaultPort;
@@ -93,7 +93,7 @@ public sealed class DcsSocketService : IDisposable
     public event EventHandler<DcsExportData>? DataReceived;
     public event EventHandler<bool>? ConnectionStatusChanged;
     public event Action<string>? ListenerError;
-    public event Action<bool>? ListeningStatusChanged; // New event for listening state changes
+    public event Action<bool>? ListeningStatusChanged;
 
     /// <summary>
     /// Starts the TCP server asynchronously. Idempotent and thread-safe:
@@ -105,12 +105,10 @@ public sealed class DcsSocketService : IDisposable
     {
         ThrowIfDisposed();
 
-        // Run the actual start logic in a background task to avoid blocking
         await Task.Run(() =>
         {
             lock (_sync)
             {
-                // Already listening on the requested port -> no-op
                 if (_server is not null && _server.IsListening && Port == port)
                 {
                     Logger.Debug("Already listening on port {Port}, no-op", port);
@@ -121,7 +119,6 @@ public sealed class DcsSocketService : IDisposable
 
                 Logger.Info("Starting listener on port {Port}", port);
 
-                // If a server exists (listening or not), stop it first
                 StopListening_NoLock();
 
                 Port = port;
@@ -145,13 +142,12 @@ public sealed class DcsSocketService : IDisposable
 
                     _server = server;
 
-                    // Reset state
                     _rxBuffersByClient.Clear();
                     _lastDataReceivedUtc = DateTime.MinValue;
 
                     Logger.Info("Successfully started listening on {Endpoint}", endpoint);
-                    RaiseConnectionStatusIfChanged_NoLock(); // will be false until client/data arrives
-                    RaiseListeningStatusChanged_NoLock(); // notify UI that listening state changed
+                    RaiseConnectionStatusIfChanged_NoLock();
+                    RaiseListeningStatusChanged_NoLock();
                 }
                 catch (Exception ex)
                 {
@@ -170,13 +166,8 @@ public sealed class DcsSocketService : IDisposable
         });
     }
 
-    /// <summary>
-    /// Synchronous version for backward compatibility. Internally calls StartListeningAsync.
-    /// </summary>
     public void StartListening(int port = DefaultPort)
     {
-        // Start asynchronously but don't wait - fire and forget
-        // The UI will be updated via ListeningStatusChanged event
         _ = Task.Run(async () =>
         {
             try
@@ -263,8 +254,6 @@ public sealed class DcsSocketService : IDisposable
 
     private void OnDataReceived(object? sender, DataReceivedEventArgs e)
     {
-        // SimpleTcp calls this potentially on a background thread
-        // Keep critical section small but consistent
         List<DcsExportData> parsed = new();
 
         lock (_sync)
@@ -278,7 +267,6 @@ public sealed class DcsSocketService : IDisposable
             var chunk = Encoding.UTF8.GetString(e.Data);
             sb.Append(chunk);
 
-            // parse newline-delimited JSON (one message per line)
             while (true)
             {
                 var line = ExtractLine_NoLock(sb);
@@ -294,7 +282,6 @@ public sealed class DcsSocketService : IDisposable
                         parsed.Add(data);
                         _lastDataReceivedUtc = DateTime.UtcNow;
                         
-                        // Log script message received
                         Logger.Info("Received data from DCS script: Source={Source}, Mission={Mission}, Theatre={Theatre}, Sortie={Sortie}, Timestamp={Timestamp}",
                             data.Source ?? "unknown",
                             data.Mission?.Theatre ?? "N/A",
@@ -312,7 +299,6 @@ public sealed class DcsSocketService : IDisposable
             RaiseConnectionStatusIfChanged_NoLock();
         }
 
-        // Invoke outside lock
         foreach (var d in parsed)
         {
             DataReceived?.Invoke(this, d);
