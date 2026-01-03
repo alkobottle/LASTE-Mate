@@ -30,7 +30,6 @@ An [Avalonia](https://github.com/AvaloniaUI/Avalonia)-based application that rep
 
 ## Roadmap
 
-- **TCP Server Auto-start**: The TCP server does not automatically start when the application launches
 - **TCP Server Process Cleanup**: Sometimes the TCP server process can get stuck and remain running after the application is closed
 - **CDU Input Error Detection**: The CDU input error detection currently does not trigger for all instances where errors occur
 - **UI Polish Needed**: 
@@ -78,9 +77,9 @@ TCP Socket mode is the default and recommended connection method. It automatical
    - Ensure [DCS-BIOS](https://github.com/dcs-bios/dcs-bios) is running and configured
 
 3. **Configure the application**:
-   - Select "TCP Socket" connection mode
+   - Select "TCP Socket" connection mode (default)
    - Configure the TCP port (default: 10309) to match the Lua script
-   - Click "Start TCP Server" to begin listening for DCS connections
+   - The TCP server will automatically start when the application launches
    - Wait for the connection status to show "Connected" (which should happen after a mission is loaded in DCS)
 
 4. **Start DCS and load a mission**:
@@ -192,7 +191,8 @@ Attention, the export script works in multiplayer, but has only been tested on a
 
 - **TCP Mode**:
   - Verify the TCP port matches in both the script config and LASTE-Mate
-  - Make sure LASTE-Mate's TCP server is started
+  - The TCP server should start automatically; check the "TCP Server" status indicator in the DCS Connection panel
+  - If the server isn't running, use the Settings button to toggle it on
   - Check Windows Firewall isn't blocking the connection
   - Ensure LuaSocket is enabled in DCS (see [Scripts/README.md](Scripts/README.md))
   - Enable `debug_mode = true` in the script config to see detailed logs

@@ -72,6 +72,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private int _tcpPort = 10309;
 
     [ObservableProperty] private bool _isTcpServerRunning;
+    [ObservableProperty] private bool _tcpListenerEnabled;
 
     [ObservableProperty] private string? _listenerError;
 
@@ -88,6 +89,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private string _appVersion = VersionHelper.GetVersion();
 
     private CancellationTokenSource? _cduSendCancellationTokenSource;
+    private System.Threading.Timer? _connectionStatusTimer;
 
     public MainWindowViewModel()
     {
@@ -110,10 +112,26 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         // Load config without triggering side effects
         LoadConfig();
 
-        // Apply initial mode exactly once
-        ApplyConnectionMode();
+        // Apply initial connection state exactly once
+        ApplyConnectionState();
+
+        // Immediately sync TCP server running state after applying connection state
+        if (ConnectionMode == ConnectionMode.TcpSocket)
+        {
+            var actualIsListening = _dcsSocketService.IsListening;
+            if (IsTcpServerRunning != actualIsListening)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainWindowViewModel] Initial sync IsTcpServerRunning: {IsTcpServerRunning} -> {actualIsListening}");
+                IsTcpServerRunning = actualIsListening;
+            }
+        }
+
+        // Start timer for stale connection status updates
+        _connectionStatusTimer = new System.Threading.Timer(OnConnectionStatusTimerTick, null, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
 
         _initializing = false;
+        
+        System.Diagnostics.Debug.WriteLine($"[MainWindowViewModel] Instance created, DcsSocketService instance: {_dcsSocketService.GetHashCode():X8}");
     }
 
     public bool CanSendToCdu => Results.Count > 0;
@@ -128,6 +146,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ExportFilePath = config.ExportFilePath ?? DcsDataService.GetDefaultExportPath();
             TcpPort = config.TcpPort <= 0 ? 10309 : config.TcpPort;
             AutoUpdate = config.AutoUpdate;
+            TcpListenerEnabled = config.TcpListenerEnabled;
 
             // Set ConnectionMode (OnConnectionModeChanged is guarded by _initializing)
             if (Enum.TryParse<ConnectionMode>(config.ConnectionMode, out var mode))
@@ -148,19 +167,27 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ConnectionMode = ConnectionMode.ToString(),
             TcpPort = TcpPort,
             ExportFilePath = ExportFilePath,
-            AutoUpdate = AutoUpdate
+            AutoUpdate = AutoUpdate,
+            TcpListenerEnabled = TcpListenerEnabled
         };
 
         _configService.SaveConfig(config);
     }
 
-    private void ApplyConnectionMode()
+    /// <summary>
+    /// Single source of truth for connection state. Applies the desired state based on ConnectionMode and TcpListenerEnabled.
+    /// </summary>
+    private void ApplyConnectionState()
     {
+        System.Diagnostics.Debug.WriteLine($"[MainWindowViewModel] ApplyConnectionState: ConnectionMode={ConnectionMode}, TcpListenerEnabled={TcpListenerEnabled}, TcpPort={TcpPort}");
+        
         ListenerError = null;
 
         if (ConnectionMode == ConnectionMode.FileBased)
         {
-            StopTcpServerInternal();
+            // File mode: stop TCP, start file watching
+            _dcsSocketService.StopListening();
+            IsTcpServerRunning = false;
 
             _dcsDataService.ExportFilePath = ExportFilePath;
             _dcsDataService.StartWatching();
@@ -170,13 +197,42 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        // TcpSocket
+        // TcpSocket mode
         _dcsDataService.StopWatching();
-        StopTcpServerInternal(); // Always start stopped, user must click "Start TCP Server"
+
+        if (TcpListenerEnabled)
+        {
+            // Start TCP listener
+            System.Diagnostics.Debug.WriteLine($"[MainWindowViewModel] Starting TCP listener on port {TcpPort}");
+            try
+            {
+                _dcsSocketService.StartListening(TcpPort);
+                IsTcpServerRunning = _dcsSocketService.IsListening;
+                System.Diagnostics.Debug.WriteLine($"[MainWindowViewModel] TCP listener started: IsTcpServerRunning={IsTcpServerRunning}, IsListening={_dcsSocketService.IsListening}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainWindowViewModel] Failed to start TCP listener: {ex.Message}");
+                IsTcpServerRunning = false;
+                // ListenerError is set by the service
+            }
+        }
+        else
+        {
+            // Stop TCP listener
+            System.Diagnostics.Debug.WriteLine($"[MainWindowViewModel] TcpListenerEnabled=false, stopping TCP listener");
+            _dcsSocketService.StopListening();
+            IsTcpServerRunning = false;
+        }
 
         UpdateOverallConnectionFlags();
         RaiseCanSendToCdu();
     }
+
+    /// <summary>
+    /// Legacy method name for compatibility. Now calls ApplyConnectionState.
+    /// </summary>
+    private void ApplyConnectionMode() => ApplyConnectionState();
 
     private void UpdateOverallConnectionFlags()
     {
@@ -209,13 +265,63 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void OnTcpConnectionStatusChanged(object? sender, bool connected)
     {
-        if (ConnectionMode != ConnectionMode.TcpSocket) return;
-
+        // Marshal to UI thread
         Dispatcher.UIThread.Post(() =>
         {
+            if (ConnectionMode != ConnectionMode.TcpSocket) return;
+
             IsTcpConnected = connected;
             IsDcsConnected = connected;
             RaiseCanSendToCdu();
+        });
+    }
+
+    /// <summary>
+    /// Timer callback to check for stale connection status and update UI accordingly.
+    /// </summary>
+    private void OnConnectionStatusTimerTick(object? state)
+    {
+        if (_disposed) return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_disposed) return;
+
+            // Sync TCP server running state with actual service state
+            if (ConnectionMode == ConnectionMode.TcpSocket)
+            {
+                var actualIsListening = _dcsSocketService.IsListening;
+                if (IsTcpServerRunning != actualIsListening)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MainWindowViewModel] Syncing IsTcpServerRunning: {IsTcpServerRunning} -> {actualIsListening}");
+                    IsTcpServerRunning = actualIsListening;
+                }
+            }
+
+            // Recompute connection status based on current state
+            if (ConnectionMode == ConnectionMode.TcpSocket)
+            {
+                var wasConnected = IsDcsConnected;
+                var nowConnected = _dcsSocketService.IsConnected;
+                
+                if (wasConnected != nowConnected)
+                {
+                    IsTcpConnected = nowConnected;
+                    IsDcsConnected = nowConnected;
+                    RaiseCanSendToCdu();
+                }
+            }
+            else if (ConnectionMode == ConnectionMode.FileBased)
+            {
+                var wasConnected = IsDcsConnected;
+                var nowConnected = _dcsDataService.IsConnected;
+                
+                if (wasConnected != nowConnected)
+                {
+                    IsDcsConnected = nowConnected;
+                    RaiseCanSendToCdu();
+                }
+            }
         });
     }
 
@@ -591,113 +697,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private void StartTcpServer()
+    private void ToggleTcpServer()
     {
         if (ConnectionMode != ConnectionMode.TcpSocket) return;
 
-        StartTcpServerInternal();
+        TcpListenerEnabled = !TcpListenerEnabled;
+        ApplyConnectionState();
         SaveConfig();
     }
 
-    [RelayCommand]
-    private void StopTcpServer()
-    {
-        StopTcpServerInternal();
-        SaveConfig();
-    }
-
-    [RelayCommand]
-    private void ToggleTcpServer()
-    {
-        if (IsTcpServerRunning)
-        {
-            StopTcpServer();
-        }
-        else
-        {
-            StartTcpServer();
-        }
-    }
-
-    private void StartTcpServerInternal()
-    {
-        if (IsTcpServerRunning)
-        {
-            System.Diagnostics.Debug.WriteLine($"StartTcpServerInternal: Already running, IsListening={_dcsSocketService.IsListening}");
-            return;
-        }
-
-        System.Diagnostics.Debug.WriteLine($"StartTcpServerInternal: Starting server on port {TcpPort}, IsListening before={_dcsSocketService.IsListening}");
-
-        try
-        {
-            ListenerError = null;
-
-            _dcsSocketService.StartListening(TcpPort);
-            
-            // Verify the server actually started before updating UI state
-            var isListening = _dcsSocketService.IsListening;
-            System.Diagnostics.Debug.WriteLine($"StartTcpServerInternal: After StartListening, IsListening={isListening}");
-            
-            if (isListening)
-            {
-                IsTcpServerRunning = true;
-                UpdateOverallConnectionFlags();
-                RaiseCanSendToCdu();
-                System.Diagnostics.Debug.WriteLine($"StartTcpServerInternal: Successfully started, IsTcpServerRunning={IsTcpServerRunning}");
-            }
-            else
-            {
-                // Server didn't start even though StartListening didn't throw
-                IsTcpServerRunning = false;
-                UpdateOverallConnectionFlags();
-                RaiseCanSendToCdu();
-                System.Diagnostics.Debug.WriteLine("StartTcpServerInternal: StartListening returned but server is not listening");
-            }
-        }
-        catch (Exception ex)
-        {
-            // Check if server actually started despite the exception
-            var isListeningAfterException = _dcsSocketService.IsListening;
-            System.Diagnostics.Debug.WriteLine($"StartTcpServerInternal: Exception caught: {ex.GetType().Name}: {ex.Message}, IsListening after exception={isListeningAfterException}");
-            
-            if (isListeningAfterException)
-            {
-                // Server started but exception was thrown - sync UI state
-                System.Diagnostics.Debug.WriteLine("StartTcpServerInternal: Server is listening despite exception, syncing UI state");
-                IsTcpServerRunning = true;
-                UpdateOverallConnectionFlags();
-                RaiseCanSendToCdu();
-            }
-            else
-            {
-                IsTcpServerRunning = false;
-                UpdateOverallConnectionFlags();
-                RaiseCanSendToCdu();
-            }
-
-            // ListenerError is raised by the service; keep ex for debug only
-            System.Diagnostics.Debug.WriteLine($"StartTcpServerInternal exception details: {ex}");
-        }
-    }
-
-    private void StopTcpServerInternal()
-    {
-        try
-        {
-            _dcsSocketService.StopListening();
-        }
-        catch
-        {
-            // ignore on shutdown
-        }
-        finally
-        {
-            IsTcpServerRunning = false;
-            UpdateOverallConnectionFlags();
-            RaiseCanSendToCdu();
-        }
-    }
 
     private static Avalonia.Controls.Window? GetMainWindow()
     {
@@ -735,11 +743,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         if (_initializing) return;
 
-        if (ConnectionMode == ConnectionMode.TcpSocket && IsTcpServerRunning)
+        if (ConnectionMode == ConnectionMode.TcpSocket && TcpListenerEnabled)
         {
-            // restart on new port
-            StopTcpServerInternal();
-            StartTcpServerInternal();
+            // Restart listener on new port
+            ApplyConnectionState();
         }
 
         SaveConfig();
@@ -749,7 +756,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         if (_initializing) return;
 
-        ApplyConnectionMode();
+        ApplyConnectionState();
         SaveConfig();
     }
 
@@ -767,8 +774,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (_disposed) return;
         _disposed = true;
 
+        System.Diagnostics.Debug.WriteLine("[MainWindowViewModel] Disposing...");
+
         try
         {
+            // Stop timer
+            _connectionStatusTimer?.Dispose();
+            _connectionStatusTimer = null;
+
+            // Unsubscribe from events
             _dcsDataService.DataUpdated -= OnDcsDataUpdated;
             _dcsDataService.ConnectionStatusChanged -= OnFileConnectionStatusChanged;
 
@@ -776,13 +790,26 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             _dcsSocketService.ConnectionStatusChanged -= OnTcpConnectionStatusChanged;
             _dcsSocketService.ListenerError -= OnListenerError;
 
+            // Stop TCP listener
+            if (TcpListenerEnabled)
+            {
+                _dcsSocketService.StopListening();
+            }
+
+            // Cancel CDU send operation if running
+            _cduSendCancellationTokenSource?.Cancel();
+            _cduSendCancellationTokenSource?.Dispose();
+
+            // Dispose services
             _dcsDataService.Dispose();
             _dcsSocketService.Dispose();
             _dcsBiosService.Dispose();
+
+            System.Diagnostics.Debug.WriteLine("[MainWindowViewModel] Disposed successfully");
         }
-        catch
+        catch (Exception ex)
         {
-            // ignore during shutdown
+            System.Diagnostics.Debug.WriteLine($"[MainWindowViewModel] Error during disposal: {ex.Message}");
         }
     }
 }

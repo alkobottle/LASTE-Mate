@@ -18,5 +18,8 @@ public class AppConfig
 
     [JsonPropertyName("dcsBiosPort")]
     public int DcsBiosPort { get; set; } = 7778;
+
+    [JsonPropertyName("tcpListenerEnabled")]
+    public bool TcpListenerEnabled { get; set; } = true;
 }
 

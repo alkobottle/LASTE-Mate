@@ -16,6 +16,7 @@ public sealed class DcsSocketService : IDisposable
     private static readonly IPAddress BindAddress = IPAddress.Parse("127.0.0.1");
 
     private readonly object _sync = new();
+    private readonly int _instanceId;
 
     private SimpleTcpServer? _server;
     private readonly Dictionary<string, StringBuilder> _rxBuffersByClient = new();
@@ -26,6 +27,12 @@ public sealed class DcsSocketService : IDisposable
     private const int DataFreshSeconds = 5;
 
     private bool _lastReportedConnected;
+
+    public DcsSocketService()
+    {
+        _instanceId = GetHashCode();
+        System.Diagnostics.Debug.WriteLine($"[DcsSocketService] Instance created: Id={_instanceId:X8}");
+    }
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -86,9 +93,9 @@ public sealed class DcsSocketService : IDisposable
     public event Action<string>? ListenerError;
 
     /// <summary>
-    /// Starts the TCP server. Idempotent:
+    /// Starts the TCP server. Idempotent and thread-safe:
     /// - If already listening on the same port: does nothing.
-    /// - If listening on another port: restarts on the requested port.
+    /// - If listening on different port: stops then starts on requested port (atomic).
     /// </summary>
     public void StartListening(int port = DefaultPort)
     {
@@ -99,9 +106,12 @@ public sealed class DcsSocketService : IDisposable
             // Already listening on the requested port -> no-op
             if (_server is not null && _server.IsListening && Port == port)
             {
+                System.Diagnostics.Debug.WriteLine($"[DcsSocketService:{_instanceId:X8}] Already listening on port {port}, no-op");
                 RaiseConnectionStatusIfChanged_NoLock();
                 return;
             }
+
+            System.Diagnostics.Debug.WriteLine($"[DcsSocketService:{_instanceId:X8}] Starting listener on port {port}");
 
             // If a server exists (listening or not), stop it first
             StopListening_NoLock();
@@ -131,6 +141,7 @@ public sealed class DcsSocketService : IDisposable
                 _rxBuffersByClient.Clear();
                 _lastDataReceivedUtc = DateTime.MinValue;
 
+                System.Diagnostics.Debug.WriteLine($"[DcsSocketService:{_instanceId:X8}] Successfully started listening on {endpoint}");
                 RaiseConnectionStatusIfChanged_NoLock(); // will be false until client/data arrives
             }
             catch (Exception ex)
@@ -139,7 +150,9 @@ public sealed class DcsSocketService : IDisposable
                 _rxBuffersByClient.Clear();
                 _lastDataReceivedUtc = DateTime.MinValue;
 
-                ListenerError?.Invoke($"Failed to bind {endpoint}: {ex.Message}");
+                var errorMsg = $"Failed to bind {endpoint}: {ex.Message}";
+                System.Diagnostics.Debug.WriteLine($"[DcsSocketService:{_instanceId:X8}] {errorMsg}");
+                ListenerError?.Invoke(errorMsg);
                 RaiseConnectionStatusIfChanged_NoLock();
                 throw;
             }
@@ -155,8 +168,16 @@ public sealed class DcsSocketService : IDisposable
 
         lock (_sync)
         {
+            if (_server is null || !_server.IsListening)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DcsSocketService:{_instanceId:X8}] StopListening called but not listening, no-op");
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[DcsSocketService:{_instanceId:X8}] Stopping listener on port {Port}");
             StopListening_NoLock();
             RaiseConnectionStatusIfChanged_NoLock();
+            System.Diagnostics.Debug.WriteLine($"[DcsSocketService:{_instanceId:X8}] Listener stopped");
         }
     }
 
@@ -340,7 +361,12 @@ public sealed class DcsSocketService : IDisposable
         var now = IsConnected;
         if (now == _lastReportedConnected) return;
 
+        var wasConnected = _lastReportedConnected;
         _lastReportedConnected = now;
+        
+        var dataAge = (DateTime.UtcNow - _lastDataReceivedUtc).TotalSeconds;
+        System.Diagnostics.Debug.WriteLine($"[DcsSocketService:{_instanceId:X8}] Connection status changed: {wasConnected} -> {now} (data age: {dataAge:F1}s, listening: {_server?.IsListening ?? false}, clients: {SafeClientCount()})");
+        
         ConnectionStatusChanged?.Invoke(this, now);
     }
 

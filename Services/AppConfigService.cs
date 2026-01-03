@@ -57,7 +57,21 @@ public class AppConfigService
                 var config = JsonSerializer.Deserialize<AppConfig>(json);
                 if (config != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Config loaded from {_configFilePath}");
+                    // Migration: Enable TCP listener autostart by default
+                    // - If property is missing (old config): enable it
+                    // - If property is false (user had it disabled): migrate to true for autostart
+                    var needsMigration = !json.Contains("tcpListenerEnabled", StringComparison.OrdinalIgnoreCase) || 
+                                        !config.TcpListenerEnabled;
+                    
+                    if (needsMigration)
+                    {
+                        config.TcpListenerEnabled = true;
+                        System.Diagnostics.Debug.WriteLine("Config migration: Enabling TCP listener autostart");
+                        // Save the migrated config
+                        SaveConfig(config);
+                    }
+                    
+                    System.Diagnostics.Debug.WriteLine($"Config loaded from {_configFilePath}, TcpListenerEnabled={config.TcpListenerEnabled}");
                     return config;
                 }
             }
@@ -67,15 +81,16 @@ public class AppConfigService
             System.Diagnostics.Debug.WriteLine($"Error loading config: {ex.Message}");
         }
 
-               // Return default config
-               return new AppConfig
-               {
-                   ConnectionMode = "TcpSocket",
-                   TcpPort = 10309,
-                   ExportFilePath = DcsDataService.GetDefaultExportPath(),
-                   AutoUpdate = true,
-                   DcsBiosPort = 7778
-               };
+        // Return default config (for new installations)
+        return new AppConfig
+        {
+            ConnectionMode = "TcpSocket",
+            TcpPort = 10309,
+            ExportFilePath = DcsDataService.GetDefaultExportPath(),
+            AutoUpdate = true,
+            DcsBiosPort = 7778,
+            TcpListenerEnabled = true
+        };
     }
 }
 
