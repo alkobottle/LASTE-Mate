@@ -31,16 +31,6 @@ https://github.com/user-attachments/assets/d735a22e-c935-4e58-963c-616ecae58616
    - Afghanistan
    - Cold War Germany
 
-## Roadmap
-
-- **TCP Server Process Cleanup**: Sometimes the TCP server process can get stuck and remain running after the application is closed
-- **CDU Input Error Detection**: The CDU input error detection currently does not trigger for all instances where errors occur
-- **UI Polish Needed**: 
-  - Fonts and font sizes need to be standardized throughout the application
-  - TCP port input box is too small and needs resizing
-  - CDU debug log should be moved to a dedicated panel on the right side
-- **Code Cleanup**: General code cleanup and refactoring needed throughout the repository
-
 ## Components
 
 ```mermaid
