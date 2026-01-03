@@ -31,7 +31,7 @@ public sealed class DcsSocketService : IDisposable
     public DcsSocketService()
     {
         _instanceId = GetHashCode();
-        Console.WriteLine($"[DcsSocketService] Instance created: Id={_instanceId:X8}");
+        Console.WriteLine($"[DcsSocketService] Singleton instance created: Id={_instanceId:X8}, HashCode={GetHashCode():X8}");
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new()

@@ -92,13 +92,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private CancellationTokenSource? _cduSendCancellationTokenSource;
     private System.Threading.Timer? _connectionStatusTimer;
 
-    public MainWindowViewModel()
+    public MainWindowViewModel(
+        DcsSocketService dcsSocketService,
+        DcsDataService dcsDataService,
+        DcsBiosService dcsBiosService,
+        AppConfigService configService)
     {
-        _dcsDataService = new DcsDataService();
-        _dcsSocketService = new DcsSocketService();
-        _dcsBiosService = new DcsBiosService();
+        _dcsSocketService = dcsSocketService;
+        _dcsDataService = dcsDataService;
+        _dcsBiosService = dcsBiosService;
+        _configService = configService;
         _cduButtonSequence = new CduButtonSequence(_dcsBiosService);
-        _configService = new AppConfigService();
 
         _availableMaps = new ObservableCollection<string>(WindRecalculator.GetAvailableMaps());
 
@@ -133,7 +137,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         _initializing = false;
         
-        Console.WriteLine($"[MainWindowViewModel] Instance created, DcsSocketService instance: {_dcsSocketService.GetHashCode():X8}");
+        Console.WriteLine($"[MainWindowViewModel] Instance created, DcsSocketService singleton instance: {_dcsSocketService.GetHashCode():X8}");
     }
 
     public bool CanSendToCdu => Results.Count > 0;

@@ -1,16 +1,23 @@
+using System;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
-using System.Linq;
 using Avalonia.Markup.Xaml;
 using LASTE_Mate.ViewModels;
 using LASTE_Mate.Views;
+using LASTE_Mate.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LASTE_Mate;
 
 public partial class App : Application
 {
+    private static ServiceProvider? _serviceProvider;
+
+    public static ServiceProvider ServiceProvider => _serviceProvider ?? throw new InvalidOperationException("Service provider not initialized");
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -23,13 +30,37 @@ public partial class App : Application
             // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
+
+            // Configure dependency injection
+            var services = new ServiceCollection();
+            ConfigureServices(services);
+            _serviceProvider = services.BuildServiceProvider();
+
+            // Resolve MainWindowViewModel from DI
+            var viewModel = _serviceProvider.GetRequiredService<MainWindowViewModel>();
+
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(),
+                DataContext = viewModel,
             };
+
+            // Dispose service provider when app exits
+            desktop.Exit += (_, _) => _serviceProvider?.Dispose();
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private void ConfigureServices(IServiceCollection services)
+    {
+        // Register services as singletons to ensure single instance
+        services.AddSingleton<DcsSocketService>();
+        services.AddSingleton<DcsDataService>();
+        services.AddSingleton<DcsBiosService>();
+        services.AddSingleton<AppConfigService>();
+
+        // Register ViewModels (transient, created fresh each time but with singleton services)
+        services.AddTransient<MainWindowViewModel>();
     }
 
     private void DisableAvaloniaDataAnnotationValidation()
