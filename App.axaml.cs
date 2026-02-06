@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
@@ -62,6 +63,7 @@ public partial class App : Application
         services.AddTransient<MainWindowViewModel>();
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Only enumerates Avalonia validation plugins to remove them; reflection-based access is not used elsewhere.")]
     private void DisableAvaloniaDataAnnotationValidation()
     {
         // Get an array of plugins to remove

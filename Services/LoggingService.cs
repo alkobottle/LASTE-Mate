@@ -22,7 +22,9 @@ public class LoggingService
     public static void Initialize()
     {
         if (_initialized)
+        {
             return;
+        }
 
         try
         {
@@ -119,7 +121,9 @@ public class LoggingService
     public static ILogger GetLogger<T>()
     {
         if (!_initialized)
+        {
             Initialize();
+        }
         return LogManager.GetLogger(typeof(T).FullName ?? typeof(T).Name);
     }
 
@@ -129,7 +133,9 @@ public class LoggingService
     public static ILogger GetLogger(string name)
     {
         if (!_initialized)
+        {
             Initialize();
+        }
         return LogManager.GetLogger(name);
     }
 }

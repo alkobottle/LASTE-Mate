@@ -156,7 +156,9 @@ public static class WindRecalculator
     public static string? MapTheatreToMapName(string? dcsTheatre)
     {
         if (string.IsNullOrWhiteSpace(dcsTheatre))
+        {
             return null;
+        }
 
         // Normalize: trim whitespace
         var normalized = dcsTheatre.Trim();
@@ -190,16 +192,46 @@ public static class WindRecalculator
         // Try case-insensitive partial matching for variations
         var lower = dcsTheatre.ToLowerInvariant();
         
-        if (lower.Contains("caucasus")) return "Caucasus";
-        if (lower.Contains("mariana")) return "Marianas";
-        if (lower.Contains("afghan")) return "Afghanistan";
-        if (lower.Contains("germany") || lower.Contains("germancw")) return "Cold War Germany";
-        if (lower.Contains("syria")) return "Syria";
-        if (lower.Contains("nevada") || lower.Contains("nttr")) return "Nevada";
-        if (lower.Contains("normandy")) return "Normandy";
-        if (lower.Contains("persian") && lower.Contains("gulf")) return "Persian Gulf";
-        if (lower.Contains("sinai")) return "Sinai";
-        if (lower.Contains("channel")) return "The channel";
+        if (lower.Contains("caucasus"))
+        {
+            return "Caucasus";
+        }
+        if (lower.Contains("mariana"))
+        {
+            return "Marianas";
+        }
+        if (lower.Contains("afghan"))
+        {
+            return "Afghanistan";
+        }
+        if (lower.Contains("germany") || lower.Contains("germancw"))
+        {
+            return "Cold War Germany";
+        }
+        if (lower.Contains("syria"))
+        {
+            return "Syria";
+        }
+        if (lower.Contains("nevada") || lower.Contains("nttr"))
+        {
+            return "Nevada";
+        }
+        if (lower.Contains("normandy"))
+        {
+            return "Normandy";
+        }
+        if (lower.Contains("persian") && lower.Contains("gulf"))
+        {
+            return "Persian Gulf";
+        }
+        if (lower.Contains("sinai"))
+        {
+            return "Sinai";
+        }
+        if (lower.Contains("channel"))
+        {
+            return "The channel";
+        }
         
         return null; // Unknown theatre
     }

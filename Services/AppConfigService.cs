@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using LASTE_Mate.Models;
+using LASTE_Mate.Serialization;
 using NLog;
 
 namespace LASTE_Mate.Services;
@@ -42,18 +43,14 @@ public class AppConfigService
         return _config;
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver()
-    };
+    private static readonly AppConfigJsonContext JsonContext = AppConfigJsonContext.Default;
 
     public void SaveConfig(AppConfig config)
     {
         try
         {
             _config = config;
-            var json = JsonSerializer.Serialize(config, JsonOptions);
+            var json = JsonSerializer.Serialize(config, JsonContext.AppConfig);
             File.WriteAllText(_configFilePath, json);
             Logger.Debug("Config saved to {ConfigFilePath}", _configFilePath);
         }
@@ -70,7 +67,7 @@ public class AppConfigService
             if (File.Exists(_configFilePath))
             {
                 var json = File.ReadAllText(_configFilePath);
-                var config = JsonSerializer.Deserialize<AppConfig>(json, JsonOptions);
+                var config = JsonSerializer.Deserialize(json, JsonContext.AppConfig);
                 if (config != null)
                 {
                     // Migration: Enable TCP listener autostart by default
