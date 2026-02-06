@@ -224,11 +224,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void OnConnectionStatusTimerTick(object? state)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
 
         Dispatcher.UIThread.Post(() =>
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
 
             // Sync TCP server running state with actual service state
             var actualIsListening = _dcsSocketService.IsListening;
@@ -271,7 +277,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void OnDcsDataUpdated(object? sender, DcsExportData? data)
     {
-        if (data == null) return;
+        if (data == null)
+        {
+            return;
+        }
 
         // Always marshal to UI thread
         if (!Dispatcher.UIThread.CheckAccess())
@@ -339,12 +348,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         if (AutoUpdate)
+        {
             Calculate();
+        }
     }
 
     private static string? FormatStartTime(int? startTimeSeconds)
     {
-        if (!startTimeSeconds.HasValue) return null;
+        if (!startTimeSeconds.HasValue)
+        {
+            return null;
+        }
 
         var s = startTimeSeconds.Value;
         var h = s / 3600;
@@ -398,9 +412,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void MaybeAutoCalculate()
     {
-        if (_initializing) return;
-        if (_batchUpdating) return;
-        if (!AutoUpdate) return;
+        if (_initializing)
+        {
+            return;
+        }
+        if (_batchUpdating)
+        {
+            return;
+        }
+        if (!AutoUpdate)
+        {
+            return;
+        }
 
         Calculate();
     }
@@ -468,7 +491,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task SendToCdu()
     {
-        if (!CanSendToCdu || IsSendingToCdu) return;
+        if (!CanSendToCdu || IsSendingToCdu)
+        {
+            return;
+        }
 
         IsSendingToCdu = true;
         CduSendProgress = "Initializing...";
@@ -573,13 +599,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     partial void OnAutoUpdateChanged(bool value)
     {
-        if (_initializing) return;
+        if (_initializing)
+        {
+            return;
+        }
         SaveConfig();
     }
 
     partial void OnTcpPortChanged(int value)
     {
-        if (_initializing) return;
+        if (_initializing)
+        {
+            return;
+        }
 
         if (TcpListenerEnabled)
         {
@@ -592,13 +624,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     partial void OnDcsBiosPortChanged(int value)
     {
-        if (_initializing) return;
+        if (_initializing)
+        {
+            return;
+        }
         SaveConfig();
     }
 
     partial void OnTcpListenerEnabledChanged(bool value)
     {
-        if (_initializing) return;
+        if (_initializing)
+        {
+            return;
+        }
         ApplyConnectionState();
         SaveConfig();
     }
@@ -614,7 +652,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
         _disposed = true;
 
         Logger.Debug("Disposing...");
